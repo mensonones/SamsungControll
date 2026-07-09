@@ -128,7 +128,7 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
                     isSearching = viewModel.isSearching,
                     discoveredTvs = viewModel.discoveredTvs,
                     onSearch = { viewModel.searchTvs() },
-                    onSelect = { tv -> viewModel.connectToTv(tv.ip) }
+                    onSelect = { tv -> viewModel.connectToTv(tv) }
                 )
             }
 
@@ -137,6 +137,7 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
             RemoteBody(
                 state = viewModel.connectionState,
                 isMuted = viewModel.isMuted,
+                onPower = { viewModel.togglePower() },
                 onToggleMute = { viewModel.toggleMute() },
                 onSendKey = { viewModel.sendKey(it) },
                 onLaunchApp = { viewModel.launchApp(it) }
@@ -302,6 +303,7 @@ private fun DiscoveryPanel(
 private fun RemoteBody(
     state: ConnectionState,
     isMuted: Boolean,
+    onPower: () -> Unit,
     onToggleMute: () -> Unit,
     onSendKey: (String) -> Unit,
     onLaunchApp: (String) -> Unit
@@ -331,7 +333,7 @@ private fun RemoteBody(
                     icon = Icons.Default.PowerSettingsNew,
                     contentDescription = "Ligar ou desligar TV",
                     color = Color(0xFFE11D48),
-                    onClick = { onSendKey("KEY_POWER") },
+                    onClick = onPower,
                     size = 60.dp
                 )
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

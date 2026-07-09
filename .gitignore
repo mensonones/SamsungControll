@@ -23,3 +23,8 @@ local.properties
 # Mobile specific
 *.hprof
 *.pyc
+
+# Android signing
+keystore.properties
+*.jks
+*.keystore

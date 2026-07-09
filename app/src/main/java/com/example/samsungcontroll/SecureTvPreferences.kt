@@ -28,25 +28,72 @@ class SecureTvPreferences(context: Context) : CertificatePinStore {
         prefs.edit { putString(KEY_LAST_CONNECTED_IP, ip) }
     }
 
-    fun getToken(ip: String): String? {
-        val encryptedToken = prefs.getString(tokenKey(ip), null)
-        if (encryptedToken != null) {
-            return decrypt(encryptedToken)
+    fun getLastConnectedIdentity(): String? {
+        return prefs.getString(KEY_LAST_CONNECTED_IDENTITY, null)?.takeIf { it.isNotBlank() }
+    }
+
+    fun saveLastConnectedIdentity(identity: String?) {
+        prefs.edit {
+            if (identity.isNullOrBlank()) {
+                remove(KEY_LAST_CONNECTED_IDENTITY)
+            } else {
+                putString(KEY_LAST_CONNECTED_IDENTITY, identity)
+            }
+        }
+    }
+
+    fun getMacAddress(ip: String? = null, identity: String? = null): String {
+        tvAliases(ip, identity).forEach { alias ->
+            prefs.getString(macKey(alias), null)?.let { return it }
+        }
+
+        return prefs.getString(KEY_LAST_CONNECTED_MAC, "") ?: ""
+    }
+
+    fun saveMacAddress(macAddress: String, ip: String? = null, identity: String? = null) {
+        val normalizedMac = normalizeMacAddress(macAddress) ?: return
+        prefs.edit {
+            putString(KEY_LAST_CONNECTED_MAC, normalizedMac)
+            tvAliases(ip, identity).forEach { alias ->
+                putString(macKey(alias), normalizedMac)
+            }
+        }
+    }
+
+    fun getToken(ip: String, identity: String? = null): String? {
+        tokenAliases(ip, identity).forEach { alias ->
+            readToken(alias)?.let { token ->
+                if (alias != ip) {
+                    saveToken(ip, identity, token)
+                }
+                return token
+            }
         }
 
         val legacyToken = prefs.getString(legacyTokenKey(ip), null)
         if (!legacyToken.isNullOrBlank()) {
-            saveToken(ip, legacyToken)
+            saveToken(ip, identity, legacyToken)
             prefs.edit { remove(legacyTokenKey(ip)) }
         }
         return legacyToken
     }
 
-    fun saveToken(ip: String, token: String) {
+    fun saveToken(ip: String, identity: String? = null, token: String) {
         prefs.edit {
-            putString(tokenKey(ip), encrypt(token))
+            tokenAliases(ip, identity).forEach { alias ->
+                putString(tokenKey(alias), encrypt(token))
+            }
             remove(legacyTokenKey(ip))
         }
+    }
+
+    private fun readToken(alias: String): String? {
+        val encryptedToken = prefs.getString(tokenKey(alias), null)
+        if (encryptedToken != null) {
+            return decrypt(encryptedToken)
+        }
+
+        return null
     }
 
     override fun getCertificateFingerprint(host: String): String? {
@@ -100,14 +147,25 @@ class SecureTvPreferences(context: Context) : CertificatePinStore {
         }
     }
 
-    private fun tokenKey(ip: String) = "token_enc_$ip"
+    private fun tokenAliases(ip: String, identity: String?): List<String> {
+        return tvAliases(ip, identity)
+    }
+
+    private fun tvAliases(ip: String?, identity: String?): List<String> {
+        return listOfNotNull(identity?.takeIf { it.isNotBlank() }, ip?.takeIf { it.isNotBlank() }).distinct()
+    }
+
+    private fun tokenKey(alias: String) = "token_enc_$alias"
     private fun legacyTokenKey(ip: String) = "token_$ip"
     private fun certificateKey(host: String) = "cert_sha256_$host"
+    private fun macKey(alias: String) = "mac_$alias"
 
     private companion object {
         const val PREFS_NAME = "tv_prefs"
         const val KEY_ALIAS = "samsung_remote_token_key"
         const val KEY_LAST_CONNECTED_IP = "last_connected_ip"
+        const val KEY_LAST_CONNECTED_IDENTITY = "last_connected_identity"
+        const val KEY_LAST_CONNECTED_MAC = "last_connected_mac"
         const val ANDROID_KEYSTORE = "AndroidKeyStore"
         const val CIPHER_TRANSFORMATION = "AES/GCM/NoPadding"
         const val GCM_TAG_LENGTH_BITS = 128

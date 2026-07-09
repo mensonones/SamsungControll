@@ -42,6 +42,7 @@ class SamsungTvController(
 
     private fun connectInternal(port: Int, useSsl: Boolean) {
         onStateChange(ConnectionState.CONNECTING)
+        val hasSavedToken = !token.isNullOrBlank()
         val encodedName = Base64.encodeToString(appName.toByteArray(), Base64.NO_WRAP)
         val httpScheme = if (useSsl) "https" else "http"
         val webSocketScheme = if (useSsl) "wss" else "ws"
@@ -89,7 +90,7 @@ class SamsungTvController(
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 response?.close()
-                if (port == 8002) {
+                if (port == 8002 && !hasSavedToken) {
                     connectInternal(8001, false)
                 } else {
                     Log.w("SamsungTv", "Unable to connect to Samsung TV", t)

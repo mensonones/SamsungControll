@@ -13,11 +13,17 @@ import java.net.InetAddress
 import java.net.SocketTimeoutException
 import kotlin.coroutines.coroutineContext
 
-data class DiscoveredTv(val name: String, val ip: String)
+data class DiscoveredTv(
+    val name: String,
+    val ip: String,
+    val identity: String? = null,
+    val macAddress: String? = null
+)
 
 class TvDiscovery(private val context: Context) : DiscoveryService {
     private val ssdpMulticastAddress = "239.255.255.250"
     private val ssdpPort = 1900
+    private val macAddressResolver = MacAddressResolver()
     
     private val searchTargets = listOf(
         "urn:samsung.com:device:RemoteControlReceiver:1",
@@ -26,7 +32,7 @@ class TvDiscovery(private val context: Context) : DiscoveryService {
     )
 
     override suspend fun discoverTvs(): List<DiscoveredTv> = withContext(Dispatchers.IO) {
-        val discovered = mutableSetOf<DiscoveredTv>()
+        val discovered = linkedMapOf<String, DiscoveredTv>()
         val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val lock = wifi.createMulticastLock("SamsungTvDiscovery")
         
@@ -60,12 +66,14 @@ class TvDiscovery(private val context: Context) : DiscoveryService {
                             socket.receive(responsePacket)
                             val response = String(responsePacket.data, 0, responsePacket.length, Charsets.UTF_8)
                             val ip = responsePacket.address.hostAddress
+                            val identity = response.extractSsdpIdentity()
 
                             if (ip != null && isLocalNetworkHost(ip)) {
+                                val macAddress = macAddressResolver.resolve(ip)
                                 if (response.contains("Samsung", ignoreCase = true) || target.contains("samsung")) {
-                                    discovered.add(DiscoveredTv("Samsung TV ($ip)", ip))
+                                    discovered.mergeTv(DiscoveredTv("Samsung TV ($ip)", ip, identity, macAddress))
                                 } else if (target == "upnp:rootdevice") {
-                                    discovered.add(DiscoveredTv("Dispositivo encontrado ($ip)", ip))
+                                    discovered.mergeTv(DiscoveredTv("Dispositivo encontrado ($ip)", ip, identity, macAddress))
                                 }
                             }
                         } catch (e: SocketTimeoutException) {
@@ -84,6 +92,54 @@ class TvDiscovery(private val context: Context) : DiscoveryService {
             }
         }
 
-        discovered.toList()
+        discovered.values.toList()
     }
+}
+
+private fun MutableMap<String, DiscoveredTv>.mergeTv(tv: DiscoveredTv) {
+    val key = tv.identity ?: tv.ip
+    val sameIpKey = entries.firstOrNull { it.value.ip == tv.ip }?.key
+    val current = this[key]
+        ?: sameIpKey?.let { remove(it) }
+        ?: tv.identity?.let { remove(tv.ip) }
+
+    this[key] = when {
+        current == null -> tv
+        current.isGenericName() && !tv.isGenericName() -> tv.copy(
+            macAddress = tv.macAddress ?: current.macAddress
+        )
+        current.macAddress.isNullOrBlank() && !tv.macAddress.isNullOrBlank() -> current.copy(
+            macAddress = tv.macAddress
+        )
+        current.identity.isNullOrBlank() && !tv.identity.isNullOrBlank() -> current.copy(
+            identity = tv.identity
+        )
+        else -> current
+    }
+}
+
+private fun DiscoveredTv.isGenericName(): Boolean {
+    return name.startsWith("Dispositivo encontrado")
+}
+
+private fun String.extractSsdpIdentity(): String? {
+    lineSequence().forEach { line ->
+        val separatorIndex = line.indexOf(':')
+        if (separatorIndex <= 0) return@forEach
+
+        val header = line.substring(0, separatorIndex).trim()
+        if (!header.equals("USN", ignoreCase = true)) return@forEach
+
+        val value = line.substring(separatorIndex + 1).trim()
+        val uuid = Regex("""uuid:[^:\s]+""", RegexOption.IGNORE_CASE)
+            .find(value)
+            ?.value
+            ?.lowercase()
+
+        if (!uuid.isNullOrBlank()) {
+            return uuid
+        }
+    }
+
+    return null
 }
