@@ -15,7 +15,11 @@ O projeto busca ser um controle simples, direto e privado para uso na rede local
 ## Funcionalidades
 
 - Busca de TVs Samsung na rede local via SSDP/UPnP.
-- Reconexão automática com a última TV usada.
+- Descoberta com deduplicação por identidade SSDP quando disponível.
+- Resolução e persistência do endereço MAC da TV para Wake-on-LAN.
+- Wake-on-LAN ao ligar a TV pelo app quando ela está desconectada.
+- Wake-on-LAN antes da reconexão automática com a última TV usada.
+- Tentativas de reconexão após envio do pacote Wake-on-LAN.
 - Controle de navegação:
   - direcional;
   - OK;
@@ -54,8 +58,11 @@ Principais classes:
 - `TvController`: contrato de controle remoto.
 - `SamsungTvController`: implementação para TVs Samsung via WebSocket/API local.
 - `DiscoveryService`: contrato de descoberta.
-- `TvDiscovery`: descoberta SSDP/UPnP na rede local.
-- `SecureTvPreferences`: persistência segura de IP, token e fingerprint de certificado.
+- `TvDiscovery`: descoberta SSDP/UPnP na rede local, com identidade e MAC quando disponíveis.
+- `WakeOnLanSender`: envio de magic packets para acordar a TV.
+- `MacAddressResolver`: leitura do cache ARP local para associar IP e MAC.
+- `SamsungDeviceInfoResolver`: consulta `http://IP:8001/api/v2/` para tentar obter MAC pela API local da TV.
+- `SecureTvPreferences`: persistência segura de IP, identidade, MAC, token e fingerprint de certificado.
 - `LocalNetworkValidator`: validação de host/IP local antes de conectar.
 
 ## Segurança
@@ -64,9 +71,11 @@ O app foi estruturado para reduzir riscos comuns em apps de controle remoto loca
 
 - Só permite conexão com IPs/hosts de rede local.
 - Armazena tokens com Android Keystore.
+- Associa tokens e MACs por identidade SSDP e por IP, reduzindo perda de pareamento quando o IP muda.
 - Exclui preferências sensíveis de backup/cloud transfer.
 - Usa pinagem TOFU do certificado da TV.
 - Evita aceitar hosts arbitrários.
+- Ignora Wake-on-LAN e resolução de MAC para hosts fora da rede local.
 
 ### Sobre TLS e TVs Samsung
 
@@ -84,10 +93,12 @@ TVs Samsung de anos/modelos diferentes podem variar em:
 - portas disponíveis;
 - comportamento da autorização;
 - suporte a token;
+- exposição do MAC pela API local;
 - IDs de aplicativos;
 - resposta da API REST de apps.
 
 O app tenta primeiro `wss://IP:8002` e faz fallback para `ws://IP:8001` quando necessário.
+Para Wake-on-LAN, o app usa o MAC descoberto por SSDP/cache ARP/API local e envia magic packets nas portas `9` e `7`.
 
 ## Requisitos
 
@@ -96,6 +107,7 @@ O app tenta primeiro `wss://IP:8002` e faz fallback para `ws://IP:8001` quando n
 - Android SDK 37.1 instalado.
 - Dispositivo Android conectado na mesma rede local da TV.
 - TV Samsung com controle remoto por rede habilitado.
+- TV configurada para aceitar Wake-on-LAN/ligar por rede, quando esse recurso for usado.
 
 ## Como Rodar
 
@@ -139,7 +151,9 @@ No issues found.
 5. Aceite a autorização na TV, se solicitado.
 6. Use o controle remoto no app.
 
-Depois da primeira conexão, o app salva a última TV e tenta reconectar automaticamente.
+Depois da primeira conexão, o app salva a última TV, a identidade SSDP, o token e o MAC quando disponíveis. Na próxima abertura, tenta acordar a TV com Wake-on-LAN e reconectar automaticamente.
+
+Quando o app estiver desconectado e houver MAC salvo, o botão power envia Wake-on-LAN em vez de `KEY_POWER`. Se a TV acordar, o app tenta reconectar em seguida.
 
 ## Troubleshooting
 
@@ -151,7 +165,8 @@ Verifique:
 - VPN está desligada;
 - isolamento de clientes no roteador está desativado;
 - permissões de rede/Wi-Fi estão disponíveis;
-- a TV está ligada ou em estado que aceite controle remoto de rede.
+- a TV está ligada ou em estado que aceite controle remoto de rede;
+- multicast/SSDP não está bloqueado no roteador.
 
 ### Conexão falha
 
@@ -169,6 +184,18 @@ Tente:
 2. Selecionar o IP correto.
 3. Confirmar a permissão exibida na TV.
 4. Reiniciar a TV se ela não responder à API local.
+
+### Wake-on-LAN não liga a TV
+
+Possíveis causas:
+
+- MAC da TV ainda não foi descoberto ou salvo;
+- Wake-on-LAN/ligar por rede está desabilitado na TV;
+- roteador bloqueia broadcast UDP;
+- TV está em modo de energia que desliga a interface de rede;
+- celular e TV estão em sub-redes diferentes.
+
+Tente conectar uma vez com a TV ligada para o app salvar o MAC. Depois disso, desligue a TV e teste o botão power novamente.
 
 ### Apps não abrem
 
