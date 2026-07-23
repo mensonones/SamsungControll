@@ -91,6 +91,12 @@ Para executar a suíte de testes de UI do Compose:
 ./gradlew connectedCheck
 ```
 
+Para gerar o pacote de Release (APK / AAB otimizado):
+
+```bash
+./gradlew assembleRelease
+```
+
 ## Licença
 
 Distribuído sob a licença MIT. Veja [LICENSE](LICENSE).
