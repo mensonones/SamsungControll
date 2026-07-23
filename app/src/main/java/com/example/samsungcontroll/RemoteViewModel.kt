@@ -12,13 +12,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class RemoteViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val discoveryService: DiscoveryService = TvDiscovery(application)
-    private val tvPreferences = SecureTvPreferences(application)
-    private val wakeOnLanSender = WakeOnLanSender(application)
-    private val macAddressResolver = MacAddressResolver()
-    private val samsungDeviceInfoResolver = SamsungDeviceInfoResolver()
+class RemoteViewModel(
+    application: Application,
+    private val tvPreferences: SecureTvPreferences = SecureTvPreferences(application),
+    private val discoveryService: DiscoveryService = TvDiscovery(application),
+    private val macAddressResolver: MacAddressResolver = MacAddressResolver(),
+    private val samsungDeviceInfoResolver: SamsungDeviceInfoResolver = SamsungDeviceInfoResolver(),
+    private val wakeOnLanSender: WakeOnLanSender = WakeOnLanSender(application)
+) : AndroidViewModel(application) {
 
     var ipAddress by mutableStateOf("")
         private set
@@ -42,6 +43,9 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
         private set
 
     var isMuted by mutableStateOf(false)
+        private set
+
+    var tvDeviceInfo by mutableStateOf<TvDeviceInfo?>(null)
         private set
     
     private var controller: TvController? = null
@@ -287,17 +291,20 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun saveResolvedMacAddress(ip: String, identity: String?) {
         viewModelScope.launch(Dispatchers.IO) {
-            val resolvedMac = samsungDeviceInfoResolver.resolveMacAddress(ip)
+            val info = samsungDeviceInfoResolver.fetchDeviceInfo(ip)
+            val resolvedMac = info?.macAddress?.takeIf { it.isNotBlank() }
                 ?: macAddressResolver.resolve(ip)
-                ?: run {
-                    Log.w("RemoteViewModel", "Unable to resolve MAC for connected TV $ip")
-                    return@launch
-                }
 
-            Log.d("RemoteViewModel", "Saving resolved MAC $resolvedMac for TV $ip")
-            tvPreferences.saveMacAddress(resolvedMac, ip, identity)
             launch(Dispatchers.Main.immediate) {
-                macAddress = resolvedMac
+                tvDeviceInfo = info
+                if (!resolvedMac.isNullOrBlank()) {
+                    macAddress = resolvedMac
+                }
+            }
+
+            if (!resolvedMac.isNullOrBlank()) {
+                Log.d("RemoteViewModel", "Saving resolved MAC $resolvedMac for TV $ip")
+                tvPreferences.saveMacAddress(resolvedMac, ip, identity)
             }
         }
     }

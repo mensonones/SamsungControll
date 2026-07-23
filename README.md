@@ -11,46 +11,34 @@ O projeto busca ser um controle simples, direto e privado para uso na rede local
 - Sem analytics.
 - Sem automações frágeis dependentes do estado interno de apps de streaming.
 - Com persistência segura de tokens e pareamento local com a TV.
-- Respeitando o padrão **SOLID** de arquitetura de software.
+- Respeitando o padrão **SOLID** de arquitetura de software e injeção de dependências.
 
 ## Funcionalidades
 
-- Busca de TVs Samsung na rede local via SSDP/UPnP com filtragem estrita de dispositivos Samsung/Tizen.
-- Entrada manual de IP com botão dedicado quando a TV não for descoberta automaticamente.
-- Apelidos personalizados para TVs salvas (*TV da Sala*, *TV do Quarto*), armazenados com criptografia no dispositivo.
-- Barra superior redesenhada com emblema glassmorphism da marca e **Menu de Opções de 3 pontos (`MoreVert`)**:
-  - Apelidar TV;
-  - Reconectar TV;
-  - Exibir IP do dispositivo conectado.
-- Resolução e persistência do endereço MAC da TV para Wake-on-LAN.
-- Wake-on-LAN ao ligar a TV pelo app quando ela está desconectada.
-- Wake-on-LAN antes da reconexão automática com a última TV usada.
-- Feedback tátil (vibração hática) configurável via `HapticsManager`.
-- Animações sutis de compressão com mola física (`pressScale`) ao pressionar botões do controle.
-- Emissor LED infravermelho/Wi-Fi virtual com brilho dinâmico ao transmitir comandos.
-- Controle de navegação:
-  - D-Pad neomórfico (Cima, Baixo, Esquerda, Direita);
-  - OK esculpido centralizado;
-  - voltar (BACK);
-  - home (HOME);
-  - exit (EXIT).
-- Controle de mídia e volume:
-  - power;
-  - mute;
-  - controle vertical de volume (+ / -);
-  - controle vertical de canal (+ / -).
-- Atalhos para apps:
-  - Netflix;
-  - YouTube;
-  - Prime Video.
-- Splash screen com logo do projeto.
-- Ícone adaptativo do app redimensionado para se ajustar às bordas do Android.
+- **Navegação por Abas Segmentadas (`TabRow`)**:
+  - **Aba 1: Controle Principal**: D-Pad neomórfico, Volume, Canais, Power, Mute, Navegação (`BACK`, `HOME`, `EXIT`) e tecla rápida `123`.
+  - **Aba 2: Números & Guia**: Teclado numérico 0-9 em grade 3x4 (`1-9`, `Pre-Ch`, `0`, `123`), atalhos diretos de entrada (`HDMI 1`, `HDMI 2`, `HDMI 3`, `TV`) e teclas de função (`GUIDE`, `INFO`, `SOURCE`, `MENU`, `LEGENDA`, `TELA 16:9`, `TOOLS`).
+  - **Aba 3: Mídia & Apps**: Botões de reprodução (`Play/Pause`, `Avançar ⏩`, `Retroceder ⏪`, `Anterior ⏮️`, `Próximo ⏭️`, `Parar ⏹️`) e 8 atalhos para apps (`Netflix`, `YouTube`, `Prime Video`, `Disney+`, `Max`, `Spotify`, `Globoplay`, `Apple TV`).
+- **Informações Detalhadas da TV (REST API)**:
+  - Consulta automática no endpoint REST local `http://IP:8001/api/v2/`.
+  - Exibe no menu: Modelo da TV, Sistema Operacional (Tizen), Firmware, Tipo de Conexão (Wi-Fi/Ethernet), IP e MAC.
+- **Busca & Apelidos de TV**:
+  - Busca de TVs Samsung na rede local via SSDP/UPnP com filtragem estrita.
+  - Entrada manual de IP com botão dedicado.
+  - Apelidos personalizados criptografados no dispositivo (*TV da Sala*, *TV do Quarto*).
+- **Wake-on-LAN & Reconexão**:
+  - Envio de magic packets para acordar a TV desligada antes de reconectar.
+- **UI Premium & Haptics**:
+  - Feedback tátil (vibração hática) configurável via `HapticsManager`.
+  - Animações sutis de compressão com mola física (`pressScale`).
+  - Emissor LED virtual com brilho dinâmico ao transmitir comandos.
 
 ## Stack
 
 - Kotlin.
 - Android SDK 37.
 - Jetpack Compose com Material 3.
+- Injeção de Dependências com **Koin 3.5.6**.
 - AndroidX Lifecycle ViewModel.
 - OkHttp para HTTP/WebSocket.
 - Gradle Kotlin DSL.
@@ -59,29 +47,26 @@ O projeto busca ser um controle simples, direto e privado para uso na rede local
 
 Principais classes e abstrações:
 
-- `MainActivity`: ponto de entrada e host do Compose.
-- `RemoteControlScreen`: tela principal do controle remoto com header simétrico e opções de 3 pontos.
+- `SamsungControlApplication`: ponto de inicialização da Application e container do Koin.
+- `di/AppModule`: módulo Koin para injeção desacoplada de dependências.
+- `MainActivity`: host do Compose e injeção do `RemoteViewModel` via `koinViewModel()`.
+- `RemoteControlScreen`: tela principal com abas segmentadas e diálogo de detalhes da TV.
 - `RemoteViewModel`: estado de UI, descoberta, conexão, apelidos e ações do controle.
-- `HapticsManager`: interface desacoplada para feedback tátil (DIP/ISP), fornecendo `AndroidHapticsManager` e `NoOpHapticsManager`.
-- `PressAnimation`: modificador reutilizável `Modifier.pressScale` baseado em animações de mola do Compose.
-- `TvController`: contrato de controle remoto.
-- `SamsungTvController`: implementação para TVs Samsung via WebSocket/API local.
-- `DiscoveryService`: contrato de descoberta.
-- `TvDiscovery`: descoberta SSDP/UPnP filtrada estritamente para Smart TVs Samsung.
-- `WakeOnLanSender`: envio de magic packets para acordar a TV.
-- `MacAddressResolver`: leitura do cache ARP local para associar IP e MAC.
-- `SecureTvPreferences`: persistência segura de IP, apelidos, identidade, MAC, token e fingerprint de certificado.
+- `TvConnectionException`: hierarquia selada de exceções (`NetworkUnreachable`, `PermissionDenied`, `DeviceNotFound`, `CertificateMismatch`).
+- `SamsungDeviceInfoResolver`: leitor REST da API local `/api/v2/` para extração de modelo, OS e firmware.
+- `HapticsManager`: interface desacoplada para feedback tátil (`AndroidHapticsManager` e `NoOpHapticsManager`).
+- `PressAnimation`: modificador reutilizável `Modifier.pressScale` baseado em molas físicas do Compose.
+- `TvController` & `SamsungTvController`: contrato e implementação do controle remoto WebSocket.
+- `DiscoveryService` & `TvDiscovery`: contrato e implementação de descoberta SSDP/UPnP.
+- `WakeOnLanSender`: envio de magic packets UDP.
+- `SecureTvPreferences`: persistência segura de IP, apelidos, tokens e certificados TOFU.
 
 ## Segurança
 
-O app foi estruturado para reduzir riscos comuns em apps de controle remoto local:
-
 - Só permite conexão com IPs/hosts de rede local.
 - Armazena tokens com Android Keystore.
-- Associa tokens, apelidos e MACs por identidade SSDP e por IP, reduzindo perda de pareamento quando o IP muda.
-- Exclui preferências sensíveis de backup/cloud transfer.
-- Usa pinagem TOFU do certificado da TV.
-- Ignora Wake-on-LAN e resolução de MAC para hosts fora da rede local.
+- Associa tokens, apelidos e MACs por identidade SSDP e por IP.
+- Pinagem TOFU do certificado SSL/TLS da TV.
 
 ## Requisitos
 
@@ -89,12 +74,8 @@ O app foi estruturado para reduzir riscos comuns em apps de controle remoto loca
 - JDK compatível com o Gradle configurado.
 - Android SDK 37.1 instalado.
 - Dispositivo Android conectado na mesma rede local da TV.
-- TV Samsung com controle remoto por rede habilitado.
-- TV configurada para aceitar Wake-on-LAN/ligar por rede, quando esse recurso for usado.
 
-## Como Rodar
-
-Clone ou abra o projeto no Android Studio e execute o módulo `app`.
+## Como Rodar e Testar
 
 Via terminal:
 
@@ -104,10 +85,10 @@ Via terminal:
 ./gradlew assembleDebug
 ```
 
-Para gerar release local:
+Para executar a suíte de testes de UI do Compose:
 
 ```bash
-./gradlew assembleRelease
+./gradlew connectedCheck
 ```
 
 ## Licença

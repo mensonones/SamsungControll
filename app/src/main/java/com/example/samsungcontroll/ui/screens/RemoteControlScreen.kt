@@ -1,11 +1,5 @@
 package com.example.samsungcontroll.ui.screens
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -24,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -45,13 +40,21 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -75,6 +78,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -94,12 +98,12 @@ import com.example.samsungcontroll.ConnectionState
 import com.example.samsungcontroll.DiscoveredTv
 import com.example.samsungcontroll.R
 import com.example.samsungcontroll.RemoteViewModel
+import com.example.samsungcontroll.TvDeviceInfo
 import com.example.samsungcontroll.ui.animation.pressScale
 import com.example.samsungcontroll.ui.components.AppLaunchButton
 import com.example.samsungcontroll.ui.components.RemoteButton
 import com.example.samsungcontroll.ui.components.RemoteIconButton
 import com.example.samsungcontroll.ui.components.RemoteSmallButton
-import com.example.samsungcontroll.ui.components.TvColorButton
 import com.example.samsungcontroll.ui.components.getEnabledColor
 import com.example.samsungcontroll.ui.haptics.LocalHapticsManager
 import com.example.samsungcontroll.ui.haptics.rememberHapticsManager
@@ -129,6 +133,7 @@ fun RemoteControlScreen(viewModel: RemoteViewModel) {
 @Composable
 private fun RemoteControlContent(viewModel: RemoteViewModel) {
     var showNicknameDialog by remember { mutableStateOf(false) }
+    var showDetailsDialog by remember { mutableStateOf(false) }
 
     if (showNicknameDialog) {
         NicknameDialog(
@@ -138,6 +143,15 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
                 viewModel.saveTvNickname(newNickname)
                 showNicknameDialog = false
             }
+        )
+    }
+
+    if (showDetailsDialog) {
+        TvDetailsDialog(
+            deviceInfo = viewModel.tvDeviceInfo,
+            ipAddress = viewModel.ipAddress,
+            macAddress = viewModel.macAddress,
+            onDismiss = { showDetailsDialog = false }
         )
     }
 
@@ -155,6 +169,7 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -166,7 +181,8 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
                 ipAddress = viewModel.ipAddress,
                 onToggleDiscovery = { viewModel.toggleDiscovery() },
                 onReconnect = { viewModel.reconnect() },
-                onEditNickname = { showNicknameDialog = true }
+                onEditNickname = { showNicknameDialog = true },
+                onShowDetails = { showDetailsDialog = true }
             )
 
             ConnectionStatusBanner(
@@ -197,6 +213,68 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
                 onLaunchApp = { viewModel.launchApp(it) }
             )
         }
+    }
+}
+
+@Composable
+private fun TvDetailsDialog(
+    deviceInfo: TvDeviceInfo?,
+    ipAddress: String,
+    macAddress: String,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1E293B),
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.Tv,
+                    contentDescription = null,
+                    tint = Color(0xFF38BDF8),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "Informações da TV",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                DetailRow("Modelo da TV:", deviceInfo?.modelName ?: "Samsung Smart TV")
+                DetailRow("Sistema Operacional:", deviceInfo?.os ?: "Tizen OS")
+                if (!deviceInfo?.firmwareVersion.isNullOrBlank()) {
+                    DetailRow("Firmware:", deviceInfo.firmwareVersion)
+                }
+                DetailRow("Tipo de Rede:", deviceInfo?.networkType ?: "Wi-Fi")
+                DetailRow("Endereço IP:", ipAddress.ifBlank { "Não informado" })
+                if (macAddress.isNotBlank()) {
+                    DetailRow("Endereço MAC:", macAddress)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                shape = CircleShape
+            ) {
+                Text("Fechar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        }
+    )
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Column {
+        Text(label, color = Color(0xFF94A3B8), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -353,7 +431,8 @@ private fun RemoteHeader(
     ipAddress: String,
     onToggleDiscovery: () -> Unit,
     onReconnect: () -> Unit,
-    onEditNickname: () -> Unit
+    onEditNickname: () -> Unit,
+    onShowDetails: () -> Unit
 ) {
     val haptics = LocalHapticsManager.current
     var showMenu by remember { mutableStateOf(false) }
@@ -512,6 +591,16 @@ private fun RemoteHeader(
                             onClick = {
                                 showMenu = false
                                 onEditNickname()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Detalhes da TV", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF38BDF8))
+                            },
+                            onClick = {
+                                showMenu = false
+                                onShowDetails()
                             }
                         )
                         DropdownMenuItem(
@@ -770,7 +859,7 @@ private fun DiscoveryPanel(
                                 value = manualIpText,
                                 onValueChange = { manualIpText = it },
                                 placeholder = { Text("Ex: 192.168.1.100", fontSize = 12.sp, color = Color(0xFF64748B)) },
-                                modifier = Modifier.weight(1f).height(50.dp),
+                                modifier = Modifier.weight(1f),
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
@@ -789,9 +878,10 @@ private fun DiscoveryPanel(
                                 },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                                modifier = Modifier.height(50.dp)
+                                modifier = Modifier.height(54.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                             ) {
-                                Text("Conectar", fontSize = 12.sp)
+                                Text("Conectar", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -923,8 +1013,10 @@ private fun RemoteBody(
     onSendKey: (String) -> Unit,
     onLaunchApp: (String) -> Unit
 ) {
+    val haptics = LocalHapticsManager.current
     val isConnected = state == ConnectionState.CONNECTED
     var isTransmitting by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableIntStateOf(0) }
 
     fun triggerAction(action: () -> Unit) {
         isTransmitting = true
@@ -972,100 +1064,297 @@ private fun RemoteBody(
 
             Spacer(modifier = Modifier.height(14.dp))
 
+            // Tab Switcher Bar
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF0F172A))
+                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), RoundedCornerShape(20.dp))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                RemoteButton(
-                    icon = Icons.Default.PowerSettingsNew,
-                    contentDescription = "Ligar ou desligar TV",
-                    color = Color(0xFFE11D48),
-                    onClick = { triggerAction(onPower) },
-                    size = 60.dp
-                )
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("SMART TV", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, letterSpacing = 1.sp)
-                    Text("Remote Control", color = Color(0xFF94A3B8), fontSize = 11.sp)
-                }
-                RemoteRoundTextButton(label = "123", enabled = isConnected, onClick = { triggerAction { onSendKey("KEY_123") } })
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            RemoteSection(title = "Navegação", horizontalAlignment = Alignment.CenterHorizontally) {
-                DPad(
-                    enabled = isConnected,
-                    onUp = { triggerAction { onSendKey("KEY_UP") } },
-                    onDown = { triggerAction { onSendKey("KEY_DOWN") } },
-                    onLeft = { triggerAction { onSendKey("KEY_LEFT") } },
-                    onRight = { triggerAction { onSendKey("KEY_RIGHT") } },
-                    onOk = { triggerAction { onSendKey("KEY_ENTER") } }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RemoteSmallButton("BACK", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_RETURN") } }
-                RemoteSmallButton("HOME", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_HOME") } }
-                RemoteSmallButton("EXIT", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_EXIT") } }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                RemoteVerticalControl(
-                    plusIcon = Icons.Default.Add,
-                    minusIcon = Icons.Default.Remove,
-                    label = "VOL",
-                    enabled = isConnected,
-                    modifier = Modifier.weight(1f),
-                    plusContentDescription = "Aumentar volume",
-                    minusContentDescription = "Diminuir volume",
-                    onPlus = { triggerAction { onSendKey("KEY_VOLUP") } },
-                    onMinus = { triggerAction { onSendKey("KEY_VOLDOWN") } }
-                )
-                RemoteActionCard(
-                    label = "MUTE",
-                    enabled = isConnected,
-                    isActive = isMuted,
-                    modifier = Modifier.weight(0.9f),
-                    onClick = { triggerAction(onToggleMute) }
-                ) { active ->
-                    Icon(
-                        if (active) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                        contentDescription = if (active) "Som mutado" else "Som ligado",
-                        tint = if (active) Color(0xFFF59E0B) else getEnabledColor(isConnected)
-                    )
-                }
-                RemoteVerticalControl(
-                    plusIcon = Icons.Default.KeyboardArrowUp,
-                    minusIcon = Icons.Default.KeyboardArrowDown,
-                    label = "CH",
-                    enabled = isConnected,
-                    modifier = Modifier.weight(1f),
-                    plusContentDescription = "Próximo canal",
-                    minusContentDescription = "Canal anterior",
-                    onPlus = { triggerAction { onSendKey("KEY_CHUP") } },
-                    onMinus = { triggerAction { onSendKey("KEY_CHDOWN") } }
-                )
-            }
-
-
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            RemoteSection(title = "Apps") {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                    AppLaunchButton("Netflix", Color(0xFFE50914), isConnected, modifier = Modifier.weight(1f)) {
-                        triggerAction { onLaunchApp("3201907018807") }
+                val tabs = listOf("Controle", "Números", "Mídia & Apps")
+                tabs.forEachIndexed { index, title ->
+                    val isSelected = selectedTab == index
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                if (isSelected) Color(0xFF0284C7) else Color.Transparent
+                            )
+                            .clickable {
+                                haptics.performClick()
+                                selectedTab = index
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = title,
+                            color = if (isSelected) Color.White else Color(0xFF94A3B8),
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        )
                     }
-                    AppLaunchButton("YouTube", Color.White, isConnected, textColor = Color.Black, modifier = Modifier.weight(1f)) {
-                        triggerAction { onLaunchApp("111299001912") }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            when (selectedTab) {
+                0 -> {
+                    // TAB 0: Main Remote Controls
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RemoteButton(
+                            icon = Icons.Default.PowerSettingsNew,
+                            contentDescription = "Ligar ou desligar TV",
+                            color = Color(0xFFE11D48),
+                            onClick = { triggerAction(onPower) },
+                            size = 56.dp
+                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("SMART TV", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, letterSpacing = 1.sp)
+                            Text("Remote Control", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                        }
+                        RemoteSmallButton("123", enabled = isConnected) {
+                            triggerAction { onSendKey("KEY_123") }
+                        }
                     }
-                    AppLaunchButton("Prime", Color(0xFF00A8E1), isConnected, modifier = Modifier.weight(1f)) {
-                        triggerAction { onLaunchApp("3201910019365") }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    RemoteSection(title = "Navegação", horizontalAlignment = Alignment.CenterHorizontally) {
+                        DPad(
+                            enabled = isConnected,
+                            onUp = { triggerAction { onSendKey("KEY_UP") } },
+                            onDown = { triggerAction { onSendKey("KEY_DOWN") } },
+                            onLeft = { triggerAction { onSendKey("KEY_LEFT") } },
+                            onRight = { triggerAction { onSendKey("KEY_RIGHT") } },
+                            onOk = { triggerAction { onSendKey("KEY_ENTER") } }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        RemoteSmallButton("BACK", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_RETURN") } }
+                        RemoteSmallButton("HOME", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_HOME") } }
+                        RemoteSmallButton("EXIT", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_EXIT") } }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        RemoteVerticalControl(
+                            plusIcon = Icons.Default.Add,
+                            minusIcon = Icons.Default.Remove,
+                            label = "VOL",
+                            enabled = isConnected,
+                            modifier = Modifier.weight(1f),
+                            plusContentDescription = "Aumentar volume",
+                            minusContentDescription = "Diminuir volume",
+                            onPlus = { triggerAction { onSendKey("KEY_VOLUP") } },
+                            onMinus = { triggerAction { onSendKey("KEY_VOLDOWN") } }
+                        )
+                        RemoteActionCard(
+                            label = "MUTE",
+                            enabled = isConnected,
+                            isActive = isMuted,
+                            modifier = Modifier.weight(0.9f),
+                            onClick = { triggerAction(onToggleMute) }
+                        ) { active ->
+                            Icon(
+                                if (active) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                                contentDescription = if (active) "Som mutado" else "Som ligado",
+                                tint = if (active) Color(0xFFF59E0B) else getEnabledColor(isConnected)
+                            )
+                        }
+                        RemoteVerticalControl(
+                            plusIcon = Icons.Default.KeyboardArrowUp,
+                            minusIcon = Icons.Default.KeyboardArrowDown,
+                            label = "CH",
+                            enabled = isConnected,
+                            modifier = Modifier.weight(1f),
+                            plusContentDescription = "Próximo canal",
+                            minusContentDescription = "Canal anterior",
+                            onPlus = { triggerAction { onSendKey("KEY_CHUP") } },
+                            onMinus = { triggerAction { onSendKey("KEY_CHDOWN") } }
+                        )
+                    }
+                }
+                1 -> {
+                    // TAB 1: Keypad 0-9 & Guide / Source / HDMI / Utility Keys
+                    RemoteSection(title = "Teclado Numérico", horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            val keypadRows = listOf(
+                                listOf("1" to "KEY_1", "2" to "KEY_2", "3" to "KEY_3"),
+                                listOf("4" to "KEY_4", "5" to "KEY_5", "6" to "KEY_6"),
+                                listOf("7" to "KEY_7", "8" to "KEY_8", "9" to "KEY_9"),
+                                listOf("Pre-Ch" to "KEY_PRECH", "0" to "KEY_0", "123" to "KEY_123")
+                            )
+
+                            keypadRows.forEach { row ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    row.forEach { (label, key) ->
+                                        RemoteRoundTextButton(
+                                            label = label,
+                                            enabled = isConnected,
+                                            onClick = { triggerAction { onSendKey(key) } },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    RemoteSection(title = "Entradas / HDMI") {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            RemoteSmallButton("HDMI 1", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_HDMI1") } }
+                            RemoteSmallButton("HDMI 2", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_HDMI2") } }
+                            RemoteSmallButton("HDMI 3", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_HDMI3") } }
+                            RemoteSmallButton("TV", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_TV") } }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    RemoteSection(title = "Funções Avançadas da TV") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                RemoteSmallButton("GUIDE", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_GUIDE") } }
+                                RemoteSmallButton("INFO", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_INFO") } }
+                                RemoteSmallButton("SOURCE", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_SOURCE") } }
+                                RemoteSmallButton("MENU", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_MENU_HOME") } }
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                RemoteSmallButton("LEGENDA", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_SUBTITLE") } }
+                                RemoteSmallButton("TELA 16:9", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_PICTURE_SIZE") } }
+                                RemoteSmallButton("TOOLS", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_TOOLS") } }
+                            }
+                        }
+                    }
+                }
+                2 -> {
+                    // TAB 2: Media Controls & Expanded Apps
+                    RemoteSection(title = "Controle de Mídia") {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconButton(
+                                onClick = { triggerAction { onSendKey("KEY_PREV") } },
+                                enabled = isConnected,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isConnected) Color(0xFF1F2937) else Color(0xFF111827))
+                            ) {
+                                Icon(Icons.Default.SkipPrevious, contentDescription = "Anterior", tint = getEnabledColor(isConnected))
+                            }
+                            IconButton(
+                                onClick = { triggerAction { onSendKey("KEY_REWIND") } },
+                                enabled = isConnected,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isConnected) Color(0xFF1F2937) else Color(0xFF111827))
+                            ) {
+                                Icon(Icons.Default.FastRewind, contentDescription = "Retroceder", tint = getEnabledColor(isConnected))
+                            }
+                            IconButton(
+                                onClick = { triggerAction { onSendKey("KEY_PLAY_PAUSE") } },
+                                enabled = isConnected,
+                                modifier = Modifier
+                                    .weight(1.2f)
+                                    .height(46.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isConnected) Color(0xFF0284C7) else Color(0xFF111827))
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Default.Pause, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                            IconButton(
+                                onClick = { triggerAction { onSendKey("KEY_FF") } },
+                                enabled = isConnected,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isConnected) Color(0xFF1F2937) else Color(0xFF111827))
+                            ) {
+                                Icon(Icons.Default.FastForward, contentDescription = "Avançar", tint = getEnabledColor(isConnected))
+                            }
+                            IconButton(
+                                onClick = { triggerAction { onSendKey("KEY_NEXT") } },
+                                enabled = isConnected,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isConnected) Color(0xFF1F2937) else Color(0xFF111827))
+                            ) {
+                                Icon(Icons.Default.SkipNext, contentDescription = "Próximo", tint = getEnabledColor(isConnected))
+                            }
+                            IconButton(
+                                onClick = { triggerAction { onSendKey("KEY_STOP") } },
+                                enabled = isConnected,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isConnected) Color(0xFF1F2937) else Color(0xFF111827))
+                            ) {
+                                Icon(Icons.Default.Stop, contentDescription = "Parar", tint = getEnabledColor(isConnected))
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    RemoteSection(title = "Aplicativos Expandidos") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                AppLaunchButton("Netflix", Color(0xFFE50914), isConnected, modifier = Modifier.weight(1f)) {
+                                    triggerAction { onLaunchApp("3201907018807") }
+                                }
+                                AppLaunchButton("YouTube", Color.White, isConnected, textColor = Color.Black, modifier = Modifier.weight(1f)) {
+                                    triggerAction { onLaunchApp("111299001912") }
+                                }
+                                AppLaunchButton("Prime", Color(0xFF00A8E1), isConnected, modifier = Modifier.weight(1f)) {
+                                    triggerAction { onLaunchApp("3201910019365") }
+                                }
+                                AppLaunchButton("Disney+", Color(0xFF113CCF), isConnected, modifier = Modifier.weight(1f)) {
+                                    triggerAction { onLaunchApp("3201907018784") }
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                AppLaunchButton("Max", Color(0xFF002BE7), isConnected, modifier = Modifier.weight(1f)) {
+                                    triggerAction { onLaunchApp("3202103023447") }
+                                }
+                                AppLaunchButton("Spotify", Color(0xFF1DB954), isConnected, modifier = Modifier.weight(1f)) {
+                                    triggerAction { onLaunchApp("3201606009684") }
+                                }
+                                AppLaunchButton("Globo", Color(0xFFFF0000), isConnected, modifier = Modifier.weight(1f)) {
+                                    triggerAction { onLaunchApp("3201601007250") }
+                                }
+                                AppLaunchButton("AppleTV", Color(0xFF333333), isConnected, modifier = Modifier.weight(1f)) {
+                                    triggerAction { onLaunchApp("3201807016597") }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1204,13 +1493,18 @@ private fun RemoteActionCard(
 }
 
 @Composable
-private fun RemoteRoundTextButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+private fun RemoteRoundTextButton(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val haptics = LocalHapticsManager.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(54.dp)
             .pressScale(isPressed = isPressed, pressedScale = 0.92f)
             .clip(CircleShape)
@@ -1301,7 +1595,7 @@ private fun RemoteVerticalControl(
             interactionSource = minusInter,
             modifier = Modifier.pressScale(isPressed = minusPressed, pressedScale = 0.85f)
         ) {
-            Icon(minusIcon, minusContentDescription, tint = if (minusPressed) Color.White else getEnabledColor(enabled))
+            Icon(minusIcon, minusContentDescription, tint = if (minusPressed) Color(0xFF38BDF8) else getEnabledColor(enabled))
         }
     }
 }
