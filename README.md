@@ -33,6 +33,12 @@ O projeto busca ser um controle simples, direto e privado para uso na rede local
   - Animações sutis de compressão com mola física (`pressScale`).
   - Emissor LED virtual com brilho dinâmico ao transmitir comandos.
 
+## Capturas de Tela
+
+| Controle Principal | Números & Guia | Mídia & Apps |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/device_remote_main.png" width="240" alt="Controle Principal"/> | <img src="docs/screenshots/device_remote_numeros.png" width="240" alt="Números e Guia"/> | <img src="docs/screenshots/device_remote_media.png" width="240" alt="Mídia e Apps"/> |
+
 ## Stack
 
 - Kotlin.
