@@ -3,6 +3,6 @@
     <item
         android:drawable="@drawable/app_logo_mark"
         android:gravity="center"
-        android:width="86dp"
-        android:height="86dp" />
+        android:width="60dp"
+        android:height="60dp" />
 </layer-list>

@@ -26,6 +26,9 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     var macAddress by mutableStateOf("")
         private set
 
+    var tvNickname by mutableStateOf("")
+        private set
+
     var connectionState by mutableStateOf(ConnectionState.DISCONNECTED)
         private set
         
@@ -48,10 +51,18 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
         val lastIp = tvPreferences.getLastConnectedIp()
         val lastIdentity = tvPreferences.getLastConnectedIdentity()
         macAddress = tvPreferences.getMacAddress(lastIp, lastIdentity)
+        tvNickname = tvPreferences.getCustomNickname(lastIp, lastIdentity) ?: ""
         if (lastIp.isNotBlank() && connectionState == ConnectionState.DISCONNECTED) {
             ipAddress = lastIp
             connectToLastTv(lastIp, lastIdentity)
         }
+    }
+
+    fun saveTvNickname(nickname: String) {
+        val cleanNickname = nickname.trim()
+        tvNickname = cleanNickname
+        val identity = tvPreferences.getLastConnectedIdentity()
+        tvPreferences.saveCustomNickname(cleanNickname, ipAddress, identity)
     }
 
     fun toggleMute() {
@@ -110,6 +121,7 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
         tvPreferences.saveLastConnectedIp(cleanIp)
         tvPreferences.saveLastConnectedIdentity(savedIdentity)
         macAddress = tvPreferences.getMacAddress(cleanIp, savedIdentity)
+        tvNickname = tvPreferences.getCustomNickname(cleanIp, savedIdentity) ?: ""
         controller?.disconnect()
         ipAddress = cleanIp
         

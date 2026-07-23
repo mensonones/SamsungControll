@@ -27,7 +27,8 @@ class TvDiscovery(private val context: Context) : DiscoveryService {
     
     private val searchTargets = listOf(
         "urn:samsung.com:device:RemoteControlReceiver:1",
-        "upnp:rootdevice",
+        "urn:schemas-upnp-org:device:MediaRenderer:1",
+        "urn:samsung.com:service:MainTvaServer2:1",
         "ssdp:all"
     )
 
@@ -59,7 +60,7 @@ class TvDiscovery(private val context: Context) : DiscoveryService {
 
                     val buffer = ByteArray(2048)
                     val startTime = System.currentTimeMillis()
-                    while (System.currentTimeMillis() - startTime < 2000) {
+                    while (System.currentTimeMillis() - startTime < 1500) {
                         coroutineContext.ensureActive()
                         try {
                             val responsePacket = DatagramPacket(buffer, buffer.size)
@@ -69,11 +70,17 @@ class TvDiscovery(private val context: Context) : DiscoveryService {
                             val identity = response.extractSsdpIdentity()
 
                             if (ip != null && isLocalNetworkHost(ip)) {
-                                val macAddress = macAddressResolver.resolve(ip)
-                                if (response.contains("Samsung", ignoreCase = true) || target.contains("samsung")) {
-                                    discovered.mergeTv(DiscoveredTv("Samsung TV ($ip)", ip, identity, macAddress))
-                                } else if (target == "upnp:rootdevice") {
-                                    discovered.mergeTv(DiscoveredTv("Dispositivo encontrado ($ip)", ip, identity, macAddress))
+                                val isSamsungDevice = response.contains("Samsung", ignoreCase = true) ||
+                                        response.contains("Tizen", ignoreCase = true) ||
+                                        response.contains("RemoteControlReceiver", ignoreCase = true) ||
+                                        response.contains("MainTvaServer", ignoreCase = true) ||
+                                        response.contains("sec-websocket", ignoreCase = true) ||
+                                        target.contains("samsung", ignoreCase = true)
+
+                                if (isSamsungDevice) {
+                                    val macAddress = macAddressResolver.resolve(ip)
+                                    val modelName = response.extractModelName() ?: "Samsung Smart TV"
+                                    discovered.mergeTv(DiscoveredTv(modelName, ip, identity, macAddress))
                                 }
                             }
                         } catch (e: SocketTimeoutException) {
@@ -119,7 +126,18 @@ private fun MutableMap<String, DiscoveredTv>.mergeTv(tv: DiscoveredTv) {
 }
 
 private fun DiscoveredTv.isGenericName(): Boolean {
-    return name.startsWith("Dispositivo encontrado")
+    return name == "Samsung Smart TV" || name.startsWith("Dispositivo")
+}
+
+private fun String.extractModelName(): String? {
+    lineSequence().forEach { line ->
+        if (line.startsWith("SERVER:", ignoreCase = true) || line.startsWith("LOCATION:", ignoreCase = true)) {
+            if (line.contains("Samsung", ignoreCase = true) || line.contains("Tizen", ignoreCase = true)) {
+                return "Samsung Smart TV"
+            }
+        }
+    }
+    return null
 }
 
 private fun String.extractSsdpIdentity(): String? {

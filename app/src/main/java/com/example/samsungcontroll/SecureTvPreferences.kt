@@ -60,6 +60,25 @@ class SecureTvPreferences(context: Context) : CertificatePinStore {
         }
     }
 
+    fun getCustomNickname(ip: String? = null, identity: String? = null): String? {
+        tvAliases(ip, identity).forEach { alias ->
+            prefs.getString(nicknameKey(alias), null)?.takeIf { it.isNotBlank() }?.let { return it }
+        }
+        return null
+    }
+
+    fun saveCustomNickname(nickname: String, ip: String? = null, identity: String? = null) {
+        prefs.edit {
+            tvAliases(ip, identity).forEach { alias ->
+                if (nickname.isBlank()) {
+                    remove(nicknameKey(alias))
+                } else {
+                    putString(nicknameKey(alias), nickname.trim())
+                }
+            }
+        }
+    }
+
     fun getToken(ip: String, identity: String? = null): String? {
         tokenAliases(ip, identity).forEach { alias ->
             readToken(alias)?.let { token ->
@@ -159,6 +178,7 @@ class SecureTvPreferences(context: Context) : CertificatePinStore {
     private fun legacyTokenKey(ip: String) = "token_$ip"
     private fun certificateKey(host: String) = "cert_sha256_$host"
     private fun macKey(alias: String) = "mac_$alias"
+    private fun nicknameKey(alias: String) = "nickname_$alias"
 
     private companion object {
         const val PREFS_NAME = "tv_prefs"

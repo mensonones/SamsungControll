@@ -1,16 +1,23 @@
 package com.example.samsungcontroll.ui.screens
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +35,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowLeft
 import androidx.compose.material.icons.automirrored.filled.ArrowRight
@@ -36,22 +44,35 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,43 +83,64 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.samsungcontroll.ConnectionState
 import com.example.samsungcontroll.DiscoveredTv
 import com.example.samsungcontroll.R
 import com.example.samsungcontroll.RemoteViewModel
+import com.example.samsungcontroll.ui.animation.pressScale
 import com.example.samsungcontroll.ui.components.AppLaunchButton
 import com.example.samsungcontroll.ui.components.RemoteButton
 import com.example.samsungcontroll.ui.components.RemoteIconButton
 import com.example.samsungcontroll.ui.components.RemoteSmallButton
+import com.example.samsungcontroll.ui.components.TvColorButton
 import com.example.samsungcontroll.ui.components.getEnabledColor
+import com.example.samsungcontroll.ui.haptics.LocalHapticsManager
+import com.example.samsungcontroll.ui.haptics.rememberHapticsManager
 import kotlinx.coroutines.delay
 
 @Composable
 fun RemoteControlScreen(viewModel: RemoteViewModel) {
-    var showSplash by remember { mutableStateOf(true) }
+    val hapticsManager = rememberHapticsManager()
 
-    LaunchedEffect(Unit) {
-        viewModel.initialize()
-        delay(SPLASH_DURATION_MS)
-        showSplash = false
-    }
+    CompositionLocalProvider(LocalHapticsManager provides hapticsManager) {
+        var showSplash by remember { mutableStateOf(true) }
 
-    if (showSplash) {
-        BrandedSplash()
-    } else {
-        RemoteControlContent(viewModel)
+        LaunchedEffect(Unit) {
+            viewModel.initialize()
+            delay(SPLASH_DURATION_MS)
+            showSplash = false
+        }
+
+        if (showSplash) {
+            BrandedSplash()
+        } else {
+            RemoteControlContent(viewModel)
+        }
     }
 }
 
 @Composable
 private fun RemoteControlContent(viewModel: RemoteViewModel) {
+    var showNicknameDialog by remember { mutableStateOf(false) }
+
+    if (showNicknameDialog) {
+        NicknameDialog(
+            currentNickname = viewModel.tvNickname,
+            onDismiss = { showNicknameDialog = false },
+            onSave = { newNickname ->
+                viewModel.saveTvNickname(newNickname)
+                showNicknameDialog = false
+            }
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -119,7 +161,16 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
         ) {
             RemoteHeader(
                 connectionState = viewModel.connectionState,
+                isDiscoveryActive = viewModel.showDiscovery,
+                tvNickname = viewModel.tvNickname,
+                ipAddress = viewModel.ipAddress,
                 onToggleDiscovery = { viewModel.toggleDiscovery() },
+                onReconnect = { viewModel.reconnect() },
+                onEditNickname = { showNicknameDialog = true }
+            )
+
+            ConnectionStatusBanner(
+                connectionState = viewModel.connectionState,
                 onReconnect = { viewModel.reconnect() }
             )
 
@@ -127,8 +178,11 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
                 DiscoveryPanel(
                     isSearching = viewModel.isSearching,
                     discoveredTvs = viewModel.discoveredTvs,
+                    currentConnectedIp = viewModel.ipAddress,
+                    connectionState = viewModel.connectionState,
                     onSearch = { viewModel.searchTvs() },
-                    onSelect = { tv -> viewModel.connectToTv(tv) }
+                    onSelect = { tv -> viewModel.connectToTv(tv) },
+                    onConnectManualIp = { manualIp -> viewModel.connectToTv(manualIp) }
                 )
             }
 
@@ -147,6 +201,107 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
 }
 
 @Composable
+private fun NicknameDialog(
+    currentNickname: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var textValue by remember { mutableStateOf(currentNickname) }
+    val presets = listOf("TV da Sala", "TV do Quarto", "Varanda", "Cozinha")
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF1E293B),
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.EditNote,
+                    contentDescription = null,
+                    tint = Color(0xFF38BDF8),
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Apelidar esta TV",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Defina um nome personalizado para identificar esta TV:",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 12.sp
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = textValue,
+                    onValueChange = { textValue = it },
+                    placeholder = { Text("Ex: TV da Sala", fontSize = 13.sp, color = Color(0xFF64748B)) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFF38BDF8),
+                        unfocusedBorderColor = Color(0xFF334155),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+                Text("Sugestões rápidas:", color = Color(0xFFCBD5E1), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    presets.take(2).forEach { preset ->
+                        AssistChip(
+                            onClick = { textValue = preset },
+                            label = { Text(preset, fontSize = 11.sp, color = Color.White) },
+                            colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFF334155))
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    presets.drop(2).forEach { preset ->
+                        AssistChip(
+                            onClick = { textValue = preset },
+                            label = { Text(preset, fontSize = 11.sp, color = Color.White) },
+                            colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFF334155))
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(textValue) },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                shape = CircleShape
+            ) {
+                Text("Salvar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar", color = Color(0xFF94A3B8), fontSize = 13.sp)
+            }
+        }
+    )
+}
+
+@Composable
 private fun BrandedSplash() {
     Box(
         modifier = Modifier
@@ -158,23 +313,51 @@ private fun BrandedSplash() {
             ),
         contentAlignment = Alignment.Center
     ) {
-        Image(
-            painter = painterResource(R.drawable.no_bg_logo),
-            contentDescription = "Samsung Control",
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxWidth(0.78f)
-                .height(220.dp)
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Image(
+                painter = painterResource(R.drawable.app_logo_mark),
+                contentDescription = "Samsung Control Logo",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(96.dp)
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "SAMSUNG",
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.5.sp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "CONTROL",
+                    color = Color(0xFF38BDF8),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.5.sp
+                )
+            }
+        }
     }
 }
 
 @Composable
 private fun RemoteHeader(
     connectionState: ConnectionState,
+    isDiscoveryActive: Boolean,
+    tvNickname: String,
+    ipAddress: String,
     onToggleDiscovery: () -> Unit,
-    onReconnect: () -> Unit
+    onReconnect: () -> Unit,
+    onEditNickname: () -> Unit
 ) {
+    val haptics = LocalHapticsManager.current
+    var showMenu by remember { mutableStateOf(false) }
+
     val (statusText, statusColor) = when (connectionState) {
         ConnectionState.DISCONNECTED -> "Desconectado" to Color(0xFF94A3B8)
         ConnectionState.CONNECTING -> "Conectando..." to Color(0xFF38BDF8)
@@ -185,48 +368,174 @@ private fun RemoteHeader(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC111827)),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xEE111827)),
+        border = BorderStroke(
+            1.dp,
+            Brush.horizontalGradient(
+                listOf(
+                    Color(0xFF38BDF8).copy(alpha = 0.35f),
+                    Color.White.copy(alpha = 0.08f)
+                )
+            )
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
-                onClick = onToggleDiscovery,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.08f))
-            ) {
-                Icon(Icons.Default.Search, contentDescription = "Buscar TV", tint = Color.White)
-            }
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Image(
-                    painter = painterResource(R.drawable.no_bg_logo),
-                    contentDescription = "Samsung Control",
-                    contentScale = ContentScale.Fit,
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
                     modifier = Modifier
-                        .width(178.dp)
-                        .height(46.dp)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                StatusChip(text = statusText, color = statusColor)
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    Color(0xFF38BDF8).copy(alpha = 0.20f),
+                                    Color(0xFF0284C7).copy(alpha = 0.08f)
+                                )
+                            )
+                        )
+                        .border(
+                            BorderStroke(
+                                1.dp,
+                                Color(0xFF38BDF8).copy(alpha = 0.40f)
+                            ),
+                            RoundedCornerShape(14.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.app_logo_mark),
+                        contentDescription = "Samsung Logo",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column {
+                    val titleText = if (tvNickname.isNotBlank()) tvNickname else "Samsung Control"
+                    Text(
+                        text = titleText,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        maxLines = 1
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(statusColor)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = statusText,
+                            color = statusColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             }
 
-            IconButton(
-                onClick = onReconnect,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.08f))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Default.Refresh, contentDescription = "Reconectar", tint = Color.White)
+                IconButton(
+                    onClick = {
+                        haptics.performClick()
+                        onToggleDiscovery()
+                    },
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isDiscoveryActive) Color(0xFF0284C7).copy(alpha = 0.4f)
+                            else Color.White.copy(alpha = 0.08f)
+                        )
+                        .border(
+                            BorderStroke(
+                                1.dp,
+                                if (isDiscoveryActive) Color(0xFF38BDF8) else Color.Transparent
+                            ),
+                            CircleShape
+                        )
+                ) {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = "Buscar TV na rede",
+                        tint = if (isDiscoveryActive) Color(0xFF38BDF8) else Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Box {
+                    IconButton(
+                        onClick = {
+                            haptics.performClick()
+                            showMenu = true
+                        },
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
+                    ) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "Menu de Opções",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        modifier = Modifier
+                            .background(Color(0xFF1E293B))
+                            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)), RoundedCornerShape(12.dp))
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Apelidar TV", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
+                            leadingIcon = {
+                                Icon(Icons.Default.EditNote, contentDescription = null, tint = Color(0xFF38BDF8))
+                            },
+                            onClick = {
+                                showMenu = false
+                                onEditNickname()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Reconectar TV", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Refresh, contentDescription = null, tint = Color(0xFF22C55E))
+                            },
+                            onClick = {
+                                showMenu = false
+                                onReconnect()
+                            }
+                        )
+                        if (ipAddress.isNotBlank()) {
+                            DropdownMenuItem(
+                                text = { Text("IP: $ipAddress", color = Color(0xFF94A3B8), fontSize = 12.sp) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Tv, contentDescription = null, tint = Color(0xFF94A3B8))
+                                },
+                                onClick = { showMenu = false },
+                                enabled = false
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -235,17 +544,92 @@ private fun RemoteHeader(
 private const val SPLASH_DURATION_MS = 900L
 
 @Composable
-private fun StatusChip(text: String, color: Color) {
-    Row(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(color.copy(alpha = 0.14f))
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(text = text, color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+private fun ConnectionStatusBanner(
+    connectionState: ConnectionState,
+    onReconnect: () -> Unit
+) {
+    val haptics = LocalHapticsManager.current
+
+    when (connectionState) {
+        ConnectionState.WAITING_FOR_PERMISSION -> {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF381E08)),
+                border = BorderStroke(1.dp, Color(0xFFF59E0B))
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("⚠️", fontSize = 20.sp)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Permissão Requerida na TV",
+                            color = Color(0xFFF59E0B),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            "Por favor, aceite a solicitação de controle que apareceu na tela da sua TV Samsung.",
+                            color = Color(0xFFFDE68A),
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+        }
+        ConnectionState.FAILED -> {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF3B0707)),
+                border = BorderStroke(1.dp, Color(0xFFEF4444))
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Text("❌", fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                "Falha de Conexão",
+                                color = Color(0xFFEF4444),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                "Verifique se a TV está ligada na mesma rede Wi-Fi.",
+                                color = Color(0xFFFCA5A5),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = {
+                            haptics.performClick()
+                            onReconnect()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                        shape = CircleShape,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text("Tentar", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        else -> {}
     }
 }
 
@@ -253,45 +637,276 @@ private fun StatusChip(text: String, color: Color) {
 private fun DiscoveryPanel(
     isSearching: Boolean,
     discoveredTvs: List<DiscoveredTv>,
+    currentConnectedIp: String,
+    connectionState: ConnectionState,
     onSearch: () -> Unit,
-    onSelect: (DiscoveredTv) -> Unit
+    onSelect: (DiscoveredTv) -> Unit,
+    onConnectManualIp: (String) -> Unit
 ) {
+    val haptics = LocalHapticsManager.current
+    var manualIpText by remember { mutableStateOf("") }
+    var showManualInput by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 14.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xEE111827)),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+        border = BorderStroke(
+            1.dp,
+            Brush.horizontalGradient(
+                listOf(
+                    Color(0xFF38BDF8).copy(alpha = 0.4f),
+                    Color.White.copy(alpha = 0.08f)
+                )
+            )
+        )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "Buscar TV na Rede",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    modifier = Modifier.weight(1f)
-                )
-                Button(onClick = onSearch, enabled = !isSearching, shape = CircleShape) {
-                    if (isSearching) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
-                    } else {
-                        Text("Buscar")
-                    }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Tv,
+                        contentDescription = null,
+                        tint = Color(0xFF38BDF8),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Buscar TV na Rede",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        haptics.performClick()
+                        onSearch()
+                    },
+                    enabled = !isSearching,
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                ) {
+                    Text(
+                        text = if (isSearching) "Buscando..." else "Buscar",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
-            if (discoveredTvs.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                LazyColumn(modifier = Modifier.heightIn(max = 180.dp)) {
-                    items(discoveredTvs) { tv ->
-                        ListItem(
-                            headlineContent = { Text(tv.name) },
-                            supportingContent = { Text(tv.ip) },
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .clickable { onSelect(tv) }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            if (isSearching) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF1E293B))
+                        .padding(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.5.dp,
+                            color = Color(0xFF38BDF8)
                         )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Varrendo a rede em busca de Smart TVs...",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            } else if (discoveredTvs.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF1E293B).copy(alpha = 0.6f))
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Nenhuma TV encontrada automaticamente.",
+                        color = Color(0xFFCBD5E1),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Verifique se a TV está ligada na mesma rede Wi-Fi.",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (!showManualInput) {
+                        OutlinedButton(
+                            onClick = { showManualInput = true },
+                            shape = CircleShape,
+                            border = BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.5f))
+                        ) {
+                            Text("Digitar IP da TV manualmente", color = Color(0xFF38BDF8), fontSize = 12.sp)
+                        }
+                    } else {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = manualIpText,
+                                onValueChange = { manualIpText = it },
+                                placeholder = { Text("Ex: 192.168.1.100", fontSize = 12.sp, color = Color(0xFF64748B)) },
+                                modifier = Modifier.weight(1f).height(50.dp),
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Color(0xFF38BDF8),
+                                    unfocusedBorderColor = Color(0xFF334155),
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White
+                                )
+                            )
+                            Button(
+                                onClick = {
+                                    if (manualIpText.isNotBlank()) {
+                                        haptics.performClick()
+                                        onConnectManualIp(manualIpText.trim())
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                modifier = Modifier.height(50.dp)
+                            ) {
+                                Text("Conectar", fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 220.dp),
+                    contentPadding = PaddingValues(vertical = 4.dp, horizontal = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(discoveredTvs) { tv ->
+                        val isThisTvConnected = tv.ip == currentConnectedIp && connectionState == ConnectionState.CONNECTED
+                        val isThisTvConnecting = tv.ip == currentConnectedIp && connectionState == ConnectionState.CONNECTING
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    haptics.performClick()
+                                    onSelect(tv)
+                                },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isThisTvConnected) Color(0xFF1E3A2B) else Color(0xFF1E293B)
+                            ),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isThisTvConnected) Color(0xFF22C55E) else Color.White.copy(alpha = 0.12f)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (isThisTvConnected) Color(0xFF22C55E).copy(alpha = 0.2f)
+                                                else Color.White.copy(alpha = 0.08f)
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Tv,
+                                            contentDescription = null,
+                                            tint = if (isThisTvConnected) Color(0xFF22C55E) else Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        val displayName = if (tv.name.startsWith("(") || tv.name.isBlank()) "Smart TV" else tv.name
+                                        Text(
+                                            displayName,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            tv.ip,
+                                            color = Color(0xFF94A3B8),
+                                            fontSize = 11.sp,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+
+                                when {
+                                    isThisTvConnected -> {
+                                        Text(
+                                            "Conectado ✓",
+                                            color = Color(0xFF22C55E),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    isThisTvConnecting -> {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(12.dp),
+                                                strokeWidth = 1.5.dp,
+                                                color = Color(0xFF38BDF8)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                "Conectando...",
+                                                color = Color(0xFF38BDF8),
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                    else -> {
+                                        Text(
+                                            "Conectar",
+                                            color = Color(0xFF38BDF8),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -309,6 +924,19 @@ private fun RemoteBody(
     onLaunchApp: (String) -> Unit
 ) {
     val isConnected = state == ConnectionState.CONNECTED
+    var isTransmitting by remember { mutableStateOf(false) }
+
+    fun triggerAction(action: () -> Unit) {
+        isTransmitting = true
+        action()
+    }
+
+    LaunchedEffect(isTransmitting) {
+        if (isTransmitting) {
+            delay(150)
+            isTransmitting = false
+        }
+    }
 
     Card(
         modifier = Modifier
@@ -316,7 +944,15 @@ private fun RemoteBody(
             .fillMaxWidth(),
         shape = RoundedCornerShape(44.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF111827)),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f))
+        border = BorderStroke(
+            1.5.dp,
+            Brush.verticalGradient(
+                listOf(
+                    Color.White.copy(alpha = 0.22f),
+                    Color.White.copy(alpha = 0.04f)
+                )
+            )
+        )
     ) {
         Column(
             modifier = Modifier
@@ -324,6 +960,18 @@ private fun RemoteBody(
                 .padding(22.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Signal LED Emitter Indicator
+            Box(
+                modifier = Modifier
+                    .size(9.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isTransmitting) Color(0xFF38BDF8) else Color(0xFF1E293B)
+                    )
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -333,38 +981,38 @@ private fun RemoteBody(
                     icon = Icons.Default.PowerSettingsNew,
                     contentDescription = "Ligar ou desligar TV",
                     color = Color(0xFFE11D48),
-                    onClick = onPower,
+                    onClick = { triggerAction(onPower) },
                     size = 60.dp
                 )
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("SMART TV", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("SMART TV", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, letterSpacing = 1.sp)
                     Text("Remote Control", color = Color(0xFF94A3B8), fontSize = 11.sp)
                 }
-                RemoteRoundTextButton(label = "123", enabled = isConnected, onClick = { onSendKey("KEY_123") })
+                RemoteRoundTextButton(label = "123", enabled = isConnected, onClick = { triggerAction { onSendKey("KEY_123") } })
             }
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             RemoteSection(title = "Navegação", horizontalAlignment = Alignment.CenterHorizontally) {
                 DPad(
                     enabled = isConnected,
-                    onUp = { onSendKey("KEY_UP") },
-                    onDown = { onSendKey("KEY_DOWN") },
-                    onLeft = { onSendKey("KEY_LEFT") },
-                    onRight = { onSendKey("KEY_RIGHT") },
-                    onOk = { onSendKey("KEY_ENTER") }
+                    onUp = { triggerAction { onSendKey("KEY_UP") } },
+                    onDown = { triggerAction { onSendKey("KEY_DOWN") } },
+                    onLeft = { triggerAction { onSendKey("KEY_LEFT") } },
+                    onRight = { triggerAction { onSendKey("KEY_RIGHT") } },
+                    onOk = { triggerAction { onSendKey("KEY_ENTER") } }
                 )
             }
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RemoteSmallButton("BACK", enabled = isConnected, modifier = Modifier.weight(1f)) { onSendKey("KEY_RETURN") }
-                RemoteSmallButton("HOME", enabled = isConnected, modifier = Modifier.weight(1f)) { onSendKey("KEY_HOME") }
-                RemoteSmallButton("EXIT", enabled = isConnected, modifier = Modifier.weight(1f)) { onSendKey("KEY_EXIT") }
+                RemoteSmallButton("BACK", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_RETURN") } }
+                RemoteSmallButton("HOME", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_HOME") } }
+                RemoteSmallButton("EXIT", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_EXIT") } }
             }
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 RemoteVerticalControl(
@@ -375,15 +1023,15 @@ private fun RemoteBody(
                     modifier = Modifier.weight(1f),
                     plusContentDescription = "Aumentar volume",
                     minusContentDescription = "Diminuir volume",
-                    onPlus = { onSendKey("KEY_VOLUP") },
-                    onMinus = { onSendKey("KEY_VOLDOWN") }
+                    onPlus = { triggerAction { onSendKey("KEY_VOLUP") } },
+                    onMinus = { triggerAction { onSendKey("KEY_VOLDOWN") } }
                 )
                 RemoteActionCard(
                     label = "MUTE",
                     enabled = isConnected,
                     isActive = isMuted,
                     modifier = Modifier.weight(0.9f),
-                    onClick = onToggleMute
+                    onClick = { triggerAction(onToggleMute) }
                 ) { active ->
                     Icon(
                         if (active) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
@@ -399,23 +1047,25 @@ private fun RemoteBody(
                     modifier = Modifier.weight(1f),
                     plusContentDescription = "Próximo canal",
                     minusContentDescription = "Canal anterior",
-                    onPlus = { onSendKey("KEY_CHUP") },
-                    onMinus = { onSendKey("KEY_CHDOWN") }
+                    onPlus = { triggerAction { onSendKey("KEY_CHUP") } },
+                    onMinus = { triggerAction { onSendKey("KEY_CHDOWN") } }
                 )
             }
 
-            Spacer(modifier = Modifier.height(22.dp))
+
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             RemoteSection(title = "Apps") {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                     AppLaunchButton("Netflix", Color(0xFFE50914), isConnected, modifier = Modifier.weight(1f)) {
-                        onLaunchApp("3201907018807")
+                        triggerAction { onLaunchApp("3201907018807") }
                     }
                     AppLaunchButton("YouTube", Color.White, isConnected, textColor = Color.Black, modifier = Modifier.weight(1f)) {
-                        onLaunchApp("111299001912")
+                        triggerAction { onLaunchApp("111299001912") }
                     }
                     AppLaunchButton("Prime", Color(0xFF00A8E1), isConnected, modifier = Modifier.weight(1f)) {
-                        onLaunchApp("3201910019365")
+                        triggerAction { onLaunchApp("3201910019365") }
                     }
                 }
             }
@@ -432,26 +1082,69 @@ private fun DPad(
     onRight: () -> Unit,
     onOk: () -> Unit
 ) {
+    val haptics = LocalHapticsManager.current
+    val okInter = remember { MutableInteractionSource() }
+    val okPressed by okInter.collectIsPressedAsState()
+
     Box(
         modifier = Modifier
-            .size(200.dp)
+            .size(210.dp)
             .clip(CircleShape)
-            .background(Color(0xFF1F2937)),
+            .background(
+                Brush.radialGradient(
+                    listOf(Color(0xFF263347), Color(0xFF161E2E), Color(0xFF0F172A))
+                )
+            )
+            .border(
+                BorderStroke(
+                    1.5.dp,
+                    Brush.linearGradient(
+                        listOf(Color(0xFF38BDF8).copy(alpha = 0.4f), Color.White.copy(alpha = 0.12f), Color(0xFF38BDF8).copy(alpha = 0.4f))
+                    )
+                ),
+                CircleShape
+            ),
         contentAlignment = Alignment.Center
     ) {
-        RemoteIconButton(Icons.Default.ArrowDropUp, "Navegar para cima", Modifier.align(Alignment.TopCenter), enabled, onUp)
-        RemoteIconButton(Icons.Default.ArrowDropDown, "Navegar para baixo", Modifier.align(Alignment.BottomCenter), enabled, onDown)
-        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowLeft, "Navegar para esquerda", Modifier.align(Alignment.CenterStart), enabled, onLeft)
-        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowRight, "Navegar para direita", Modifier.align(Alignment.CenterEnd), enabled, onRight)
+        RemoteIconButton(Icons.Default.ArrowDropUp, "Navegar para cima", Modifier.align(Alignment.TopCenter).padding(top = 4.dp), enabled, onUp)
+        RemoteIconButton(Icons.Default.ArrowDropDown, "Navegar para baixo", Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp), enabled, onDown)
+        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowLeft, "Navegar para esquerda", Modifier.align(Alignment.CenterStart).padding(start = 4.dp), enabled, onLeft)
+        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowRight, "Navegar para direita", Modifier.align(Alignment.CenterEnd).padding(end = 4.dp), enabled, onRight)
         Box(
             modifier = Modifier
-                .size(70.dp)
+                .size(76.dp)
+                .pressScale(isPressed = okPressed, pressedScale = 0.90f)
                 .clip(CircleShape)
-                .background(if (enabled) Color(0xFF334155) else Color(0xFF1F2937))
-                .clickable(enabled) { onOk() },
+                .background(
+                    if (enabled) {
+                        if (okPressed) Brush.radialGradient(listOf(Color(0xFF0284C7), Color(0xFF0369A1)))
+                        else Brush.radialGradient(listOf(Color(0xFF334155), Color(0xFF1E293B)))
+                    } else Brush.radialGradient(listOf(Color(0xFF1E293B), Color(0xFF0F172A)))
+                )
+                .border(
+                    BorderStroke(
+                        1.dp,
+                        if (okPressed) Color(0xFF38BDF8) else Color.White.copy(alpha = 0.12f)
+                    ),
+                    CircleShape
+                )
+                .clickable(
+                    enabled = enabled,
+                    interactionSource = okInter,
+                    indication = ripple()
+                ) {
+                    haptics.performClick()
+                    onOk()
+                },
             contentAlignment = Alignment.Center
         ) {
-            Text("OK", color = getEnabledColor(enabled), fontWeight = FontWeight.Bold)
+            Text(
+                "OK",
+                color = getEnabledColor(enabled),
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                letterSpacing = 1.sp
+            )
         }
     }
 }
@@ -478,32 +1171,59 @@ private fun RemoteActionCard(
     onClick: () -> Unit,
     icon: @Composable (Boolean) -> Unit
 ) {
+    val haptics = LocalHapticsManager.current
+    val inter = remember { MutableInteractionSource() }
+    val isPressed by inter.collectIsPressedAsState()
+
     Column(
         modifier = modifier
             .height(110.dp)
+            .pressScale(isPressed = isPressed, pressedScale = 0.95f)
             .clip(RoundedCornerShape(20.dp))
             .background(if (isActive) Color(0xFF1D283A) else Color(0xFF1F2937))
-            .clickable(enabled) { onClick() }
+            .border(
+                BorderStroke(1.dp, if (isActive) Color(0xFFF59E0B).copy(alpha = 0.4f) else Color.White.copy(alpha = 0.08f)),
+                RoundedCornerShape(20.dp)
+            )
+            .clickable(
+                enabled = enabled,
+                interactionSource = inter,
+                indication = ripple()
+            ) {
+                haptics.performToggle()
+                onClick()
+            }
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         icon(isActive)
+        Spacer(modifier = Modifier.height(4.dp))
         Text(label, color = if (isActive) Color(0xFFF59E0B) else getEnabledColor(enabled), fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
 private fun RemoteRoundTextButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    val haptics = LocalHapticsManager.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+
     Box(
         modifier = Modifier
             .size(54.dp)
-            .graphicsLayer(scaleX = if (isPressed) 0.92f else 1f, scaleY = if (isPressed) 0.92f else 1f)
+            .pressScale(isPressed = isPressed, pressedScale = 0.92f)
             .clip(CircleShape)
             .background(if (enabled) Color(0xFF1F2937) else Color(0xFF111827))
-            .clickable(interactionSource = interactionSource, indication = ripple(), enabled = enabled) { onClick() },
+            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), CircleShape)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(),
+                enabled = enabled
+            ) {
+                haptics.performKeypress()
+                onClick()
+            },
         contentAlignment = Alignment.Center
     ) {
         Text(label, color = getEnabledColor(enabled), fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -522,22 +1242,65 @@ private fun RemoteVerticalControl(
     onPlus: () -> Unit,
     onMinus: () -> Unit
 ) {
+    val haptics = LocalHapticsManager.current
+
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(28.dp))
-            .background(if (enabled) Color(0xFF1F2937) else Color(0xFF111827))
+            .clip(RoundedCornerShape(32.dp))
+            .background(
+                if (enabled) Brush.verticalGradient(listOf(Color(0xFF1F2937), Color(0xFF111827)))
+                else Brush.verticalGradient(listOf(Color(0xFF111827), Color(0xFF0B101D)))
+            )
+            .border(
+                BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+                RoundedCornerShape(32.dp)
+            )
             .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         val plusInter = remember { MutableInteractionSource() }
         val plusPressed by plusInter.collectIsPressedAsState()
-        IconButton(onClick = onPlus, enabled = enabled, interactionSource = plusInter) {
-            Icon(plusIcon, plusContentDescription, tint = if (plusPressed) Color.White else getEnabledColor(enabled))
+        IconButton(
+            onClick = {
+                haptics.performKeypress()
+                onPlus()
+            },
+            enabled = enabled,
+            interactionSource = plusInter,
+            modifier = Modifier.pressScale(isPressed = plusPressed, pressedScale = 0.85f)
+        ) {
+            Icon(plusIcon, plusContentDescription, tint = if (plusPressed) Color(0xFF38BDF8) else getEnabledColor(enabled))
         }
-        Text(label, color = Color(0xFF94A3B8), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.5f)
+                .height(1.dp)
+                .background(Color.White.copy(alpha = 0.08f))
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(label, color = Color(0xFF94A3B8), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.5f)
+                .height(1.dp)
+                .background(Color.White.copy(alpha = 0.08f))
+        )
+
         val minusInter = remember { MutableInteractionSource() }
         val minusPressed by minusInter.collectIsPressedAsState()
-        IconButton(onClick = onMinus, enabled = enabled, interactionSource = minusInter) {
+        IconButton(
+            onClick = {
+                haptics.performKeypress()
+                onMinus()
+            },
+            enabled = enabled,
+            interactionSource = minusInter,
+            modifier = Modifier.pressScale(isPressed = minusPressed, pressedScale = 0.85f)
+        ) {
             Icon(minusIcon, minusContentDescription, tint = if (minusPressed) Color.White else getEnabledColor(enabled))
         }
     }
