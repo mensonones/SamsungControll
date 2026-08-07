@@ -1,11 +1,15 @@
 package com.example.samsungcontroll
 
 import android.app.Application
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.Network
 import android.util.Log
 import androidx.compose.runtime.getValue
+import androidx.core.content.ContextCompat
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -58,6 +62,8 @@ class RemoteViewModel(
         application.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
+    private var disconnectReceiver: BroadcastReceiver? = null
+
     fun initialize() {
         val lastIp = tvPreferences.getLastConnectedIp()
         val lastIdentity = tvPreferences.getLastConnectedIdentity()
@@ -68,6 +74,25 @@ class RemoteViewModel(
             connectToLastTv(lastIp, lastIdentity)
         }
         registerNetworkMonitoring()
+        registerDisconnectReceiver()
+    }
+
+    private fun registerDisconnectReceiver() {
+        if (disconnectReceiver != null) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == TvConnectionService.ACTION_DISCONNECT) {
+                    disconnect()
+                }
+            }
+        }
+        ContextCompat.registerReceiver(
+            getApplication<Application>(),
+            receiver,
+            IntentFilter(TvConnectionService.ACTION_DISCONNECT),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        disconnectReceiver = receiver
     }
 
     private fun registerNetworkMonitoring() {
@@ -388,6 +413,10 @@ class RemoteViewModel(
             runCatching { connectivityManager?.unregisterNetworkCallback(callback) }
         }
         networkCallback = null
+        disconnectReceiver?.let { receiver ->
+            runCatching { getApplication<Application>().unregisterReceiver(receiver) }
+        }
+        disconnectReceiver = null
         disconnect()
     }
 

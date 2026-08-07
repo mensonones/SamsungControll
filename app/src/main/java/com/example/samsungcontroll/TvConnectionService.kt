@@ -65,11 +65,24 @@ class TvConnectionService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        val disconnectIntent = Intent(ACTION_DISCONNECT).setPackage(packageName)
+        val disconnectPendingIntent = PendingIntent.getBroadcast(
+            this,
+            1,
+            disconnectIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_tv)
             .setContentTitle(getString(R.string.notification_connected_title))
             .setContentText(getString(R.string.notification_connected_text, label))
             .setContentIntent(contentIntent)
+            .addAction(
+                0,
+                getString(R.string.notification_action_disconnect),
+                disconnectPendingIntent
+            )
             .setOngoing(true)
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -95,6 +108,9 @@ class TvConnectionService : Service() {
     }
 
     companion object {
+        /** Broadcast action fired when the user taps "Disconnect" on the notification. */
+        const val ACTION_DISCONNECT = "com.example.samsungcontroll.action.DISCONNECT"
+
         private const val CHANNEL_ID = "tv_connection"
         private const val NOTIFICATION_ID = 1001
         private const val EXTRA_TV_LABEL = "tv_label"
