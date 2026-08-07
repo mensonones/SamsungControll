@@ -76,7 +76,14 @@ class TvPowerTileService : TileService(), KoinComponent {
             return
         }
         scope.launch {
-            val isOn = deviceInfoResolver.fetchDeviceInfo(ip) != null
+            val info = deviceInfoResolver.fetchDeviceInfo(ip)
+            val isOn = when {
+                info == null -> false
+                // Prefer the reported power state when the firmware exposes it, so a
+                // TV that keeps its HTTP server up in standby (Quick Start) reads as off.
+                info.powerState.isNotBlank() -> info.powerState.equals("on", ignoreCase = true)
+                else -> true
+            }
             updateTile(on = isOn)
         }
     }

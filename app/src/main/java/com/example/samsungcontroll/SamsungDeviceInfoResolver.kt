@@ -13,7 +13,13 @@ data class TvDeviceInfo(
     val os: String = "Tizen OS",
     val networkType: String = "Wi-Fi / Rede",
     val macAddress: String = "",
-    val firmwareVersion: String = ""
+    val firmwareVersion: String = "",
+    /**
+     * Reported power state ("on"/"standby") when the TV exposes it, or empty when
+     * the firmware does not include the field. Callers should treat an empty value
+     * as "unknown" and fall back to reachability.
+     */
+    val powerState: String = ""
 )
 
 class SamsungDeviceInfoResolver {
@@ -45,6 +51,7 @@ class SamsungDeviceInfoResolver {
                 val netType = deviceObj?.optString("networkType")?.takeIf { it.isNotBlank() } ?: "Wi-Fi"
                 val mac = findMacAddress(json).orEmpty()
                 val firmware = deviceObj?.optString("firmwareVersion")?.takeIf { it.isNotBlank() } ?: ""
+                val powerState = deviceObj?.optString("PowerState")?.takeIf { it.isNotBlank() } ?: ""
 
                 TvDeviceInfo(
                     modelName = model,
@@ -52,7 +59,8 @@ class SamsungDeviceInfoResolver {
                     os = os,
                     networkType = netType,
                     macAddress = mac,
-                    firmwareVersion = firmware
+                    firmwareVersion = firmware,
+                    powerState = powerState
                 )
             }
         }.onFailure { error ->
