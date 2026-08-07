@@ -1,6 +1,9 @@
 package com.example.samsungcontroll
 
 import android.app.Application
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +54,10 @@ class RemoteViewModel(
     private var controller: TvController? = null
     private var connectionAttempt = 0
 
+    private val connectivityManager =
+        application.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
     fun initialize() {
         val lastIp = tvPreferences.getLastConnectedIp()
         val lastIdentity = tvPreferences.getLastConnectedIdentity()
@@ -59,6 +66,39 @@ class RemoteViewModel(
         if (lastIp.isNotBlank() && connectionState == ConnectionState.DISCONNECTED) {
             ipAddress = lastIp
             connectToLastTv(lastIp, lastIdentity)
+        }
+        registerNetworkMonitoring()
+    }
+
+    private fun registerNetworkMonitoring() {
+        if (networkCallback != null) return
+        val manager = connectivityManager ?: return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                // A network came up (e.g. Wi-Fi reconnected or switched). Try to
+                // restore the connection if it isn't already active.
+                viewModelScope.launch(Dispatchers.Main.immediate) {
+                    reconnectIfNeeded()
+                }
+            }
+        }
+        runCatching { manager.registerDefaultNetworkCallback(callback) }
+            .onSuccess { networkCallback = callback }
+            .onFailure { Log.w("RemoteViewModel", "Unable to register network callback", it) }
+    }
+
+    private fun reconnectIfNeeded() {
+        if (connectionState == ConnectionState.CONNECTED ||
+            connectionState == ConnectionState.CONNECTING
+        ) {
+            return
+        }
+        if (controller?.isConnected() == true) return
+        val lastIp = tvPreferences.getLastConnectedIp()
+        val lastIdentity = tvPreferences.getLastConnectedIdentity()
+        if (lastIp.isNotBlank()) {
+            ipAddress = lastIp
+            connectToTv(lastIp, lastIdentity, wakeOnFailure = false, retriesAfterWake = 0)
         }
     }
 
@@ -344,6 +384,10 @@ class RemoteViewModel(
     }
 
     override fun onCleared() {
+        networkCallback?.let { callback ->
+            runCatching { connectivityManager?.unregisterNetworkCallback(callback) }
+        }
+        networkCallback = null
         disconnect()
     }
 
