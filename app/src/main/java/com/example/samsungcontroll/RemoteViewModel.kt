@@ -165,9 +165,19 @@ class RemoteViewModel(
 
     fun searchTvs() {
         viewModelScope.launch {
+            // Hide any previous results while scanning: during the search the only
+            // feedback is the orbit on the magnifier. Results are revealed on finish.
+            showDiscovery = false
             isSearching = true
+            val start = System.currentTimeMillis()
             discoveredTvs = discoveryService.discoverTvs()
+            // Enforce a minimum visible search window. Discovery can return almost
+            // instantly (cached/empty); without this the searching state would
+            // collapse in a single frame and never render (no orbit, results flash in).
+            val elapsed = System.currentTimeMillis() - start
+            if (elapsed < MIN_SEARCH_DURATION_MS) delay(MIN_SEARCH_DURATION_MS - elapsed)
             isSearching = false
+            showDiscovery = true
         }
     }
 
@@ -424,5 +434,6 @@ class RemoteViewModel(
         const val WAKE_INITIAL_RECONNECT_DELAY_MS = 8_000L
         const val WAKE_RECONNECT_RETRY_DELAY_MS = 6_000L
         const val WAKE_RECONNECT_RETRIES = 5
+        const val MIN_SEARCH_DURATION_MS = 1_200L
     }
 }
