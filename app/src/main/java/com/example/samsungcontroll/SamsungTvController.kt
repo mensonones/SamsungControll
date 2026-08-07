@@ -27,17 +27,28 @@ class SamsungTvController(
     private val onStateChange: (ConnectionState) -> Unit
 ) : TvController {
     private var webSocket: WebSocket? = null
+    private var isConnectedState = false
 
     private val client: OkHttpClient by lazy {
         createHttpClient()
     }
 
+    override fun isConnected(): Boolean = isConnectedState
+
     override fun connect() {
         if (!isLocalNetworkHost(tvIp)) {
+            isConnectedState = false
             onStateChange(ConnectionState.FAILED)
             return
         }
         connectInternal(port = 8002, useSsl = true)
+    }
+
+    override fun disconnect() {
+        isConnectedState = false
+        webSocket?.close(1000, "User disconnected")
+        webSocket = null
+        onStateChange(ConnectionState.DISCONNECTED)
     }
 
     private fun connectInternal(port: Int, useSsl: Boolean) {
@@ -80,8 +91,14 @@ class SamsungTvController(
                         }
                     }
                     when (json.optString("event")) {
-                        "ms.channel.connect" -> onStateChange(ConnectionState.CONNECTED)
-                        "ms.channel.unauthorized" -> onStateChange(ConnectionState.WAITING_FOR_PERMISSION)
+                        "ms.channel.connect" -> {
+                            isConnectedState = true
+                            onStateChange(ConnectionState.CONNECTED)
+                        }
+                        "ms.channel.unauthorized" -> {
+                            isConnectedState = false
+                            onStateChange(ConnectionState.WAITING_FOR_PERMISSION)
+                        }
                     }
                 }.onFailure { error ->
                     Log.w("SamsungTv", "Ignoring malformed TV message", error)
@@ -89,6 +106,7 @@ class SamsungTvController(
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                isConnectedState = false
                 response?.close()
                 if (port == 8002 && !hasSavedToken) {
                     connectInternal(8001, false)
@@ -99,6 +117,7 @@ class SamsungTvController(
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                isConnectedState = false
                 onStateChange(ConnectionState.DISCONNECTED)
             }
         })
@@ -116,6 +135,7 @@ class SamsungTvController(
             .hostnameVerifier { hostname, _ ->
                 hostname == tvIp && isLocalNetworkHost(hostname)
             }
+            .pingInterval(10, TimeUnit.SECONDS)
             .readTimeout(0, TimeUnit.MILLISECONDS)
             .connectTimeout(5, TimeUnit.SECONDS)
             .build()
@@ -182,12 +202,6 @@ class SamsungTvController(
             })
         }
         webSocket?.send(json.toString())
-    }
-
-    override fun disconnect() {
-        webSocket?.close(1000, "User requested")
-        webSocket = null
-        onStateChange(ConnectionState.DISCONNECTED)
     }
 }
 

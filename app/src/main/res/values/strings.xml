@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">SamsungControll</string>
+    <string name="notification_channel_name">TV connection</string>
+    <string name="notification_channel_description">Keeps the remote connected while the app is in the background</string>
+    <string name="notification_connected_title">Remote connected</string>
+    <string name="notification_connected_text">Connected to %1$s</string>
 </resources>

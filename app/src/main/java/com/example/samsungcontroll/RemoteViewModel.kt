@@ -62,6 +62,20 @@ class RemoteViewModel(
         }
     }
 
+    fun onResume() {
+        if (controller?.isConnected() == true && connectionState == ConnectionState.CONNECTED) {
+            return
+        }
+        val lastIp = tvPreferences.getLastConnectedIp()
+        val lastIdentity = tvPreferences.getLastConnectedIdentity()
+        if (lastIp.isNotBlank()) {
+            ipAddress = lastIp
+            // Try a direct reconnect first (instant when the TV is on) and only fall
+            // back to the slower Wake-On-LAN flow if the direct attempt fails.
+            connectToTv(lastIp, lastIdentity, wakeOnFailure = true, retriesAfterWake = 0)
+        }
+    }
+
     fun saveTvNickname(nickname: String) {
         val cleanNickname = nickname.trim()
         tvNickname = cleanNickname
@@ -150,6 +164,9 @@ class RemoteViewModel(
                             if (newState == ConnectionState.CONNECTED) {
                                 showDiscovery = false
                                 saveResolvedMacAddress(cleanIp, savedIdentity)
+                                startConnectionService()
+                            } else {
+                                stopConnectionService()
                             }
                         }
                     }
@@ -314,6 +331,16 @@ class RemoteViewModel(
         controller?.disconnect()
         controller = null
         connectionState = ConnectionState.DISCONNECTED
+        stopConnectionService()
+    }
+
+    private fun startConnectionService() {
+        val label = tvNickname.takeIf { it.isNotBlank() } ?: ipAddress
+        TvConnectionService.start(getApplication<Application>(), label)
+    }
+
+    private fun stopConnectionService() {
+        TvConnectionService.stop(getApplication<Application>())
     }
 
     override fun onCleared() {

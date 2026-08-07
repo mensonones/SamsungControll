@@ -108,17 +108,35 @@ import com.example.samsungcontroll.ui.components.getEnabledColor
 import com.example.samsungcontroll.ui.haptics.LocalHapticsManager
 import com.example.samsungcontroll.ui.haptics.rememberHapticsManager
 import kotlinx.coroutines.delay
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun RemoteControlScreen(viewModel: RemoteViewModel) {
     val hapticsManager = rememberHapticsManager()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.onResume()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     CompositionLocalProvider(LocalHapticsManager provides hapticsManager) {
         var showSplash by remember { mutableStateOf(true) }
 
         LaunchedEffect(Unit) {
             viewModel.initialize()
-            delay(SPLASH_DURATION_MS)
+            delay(SPLASH_DURATION_MS.milliseconds)
             showSplash = false
         }
 
