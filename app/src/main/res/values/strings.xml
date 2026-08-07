@@ -5,4 +5,7 @@
     <string name="notification_connected_title">Remote connected</string>
     <string name="notification_connected_text">Connected to %1$s</string>
     <string name="notification_action_disconnect">Disconnect</string>
+    <string name="tile_power_label">TV Power</string>
+    <string name="tile_power_on">On</string>
+    <string name="tile_power_off">Off</string>
 </resources>

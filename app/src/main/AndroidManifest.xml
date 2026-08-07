@@ -38,6 +38,17 @@
             android:name=".TvConnectionService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
+
+        <service
+            android:name=".TvPowerTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_power"
+            android:label="@string/tile_power_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>
