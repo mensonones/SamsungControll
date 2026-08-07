@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -52,10 +53,23 @@ class MainActivity : ComponentActivity() {
                 viewModel.sendKey(
                     if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) "KEY_VOLUP" else "KEY_VOLDOWN"
                 )
+                performVolumeHaptic()
             }
             return true
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    /**
+     * Crisp tactile tick for a volume key press, rendered by the platform haptic
+     * engine. FLAG_IGNORE_VIEW_SETTING ensures it fires regardless of the
+     * decor view's haptic-enabled attribute.
+     */
+    private fun performVolumeHaptic() {
+        window.decorView.performHapticFeedback(
+            HapticFeedbackConstants.VIRTUAL_KEY,
+            HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+        )
     }
 
     private fun requestNotificationPermissionIfNeeded() {

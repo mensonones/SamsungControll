@@ -5,14 +5,14 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.view.HapticFeedbackConstants
+import android.view.View
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 
 /**
  * Interface defining tactile feedback operations (SOLID: Dependency Inversion & Interface Segregation).
@@ -24,28 +24,32 @@ interface HapticsManager {
 }
 
 /**
- * Android system Vibrator + Compose [HapticFeedback] implementation of [HapticsManager].
+ * Tactile feedback backed primarily by the platform view haptics
+ * ([View.performHapticFeedback]), which the OS renders as a crisp, tuned tick and
+ * is perceptible on devices where short raw [Vibrator] one-shots are not. The raw
+ * vibrator is kept only as a fallback for callers without a [View].
  */
 class AndroidHapticsManager(
-    private val context: Context?,
-    private val hapticFeedback: HapticFeedback?
+    private val view: View?,
+    private val context: Context? = null
 ) : HapticsManager {
 
-    override fun performClick() {
-        if (!vibrate(30L, VibrationEffect.DEFAULT_AMPLITUDE)) {
-            hapticFeedback?.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        }
-    }
+    override fun performClick() =
+        perform(HapticFeedbackConstants.VIRTUAL_KEY, durationMs = 30L, amplitude = VibrationEffect.DEFAULT_AMPLITUDE)
 
-    override fun performKeypress() {
-        if (!vibrate(15L, 100)) {
-            hapticFeedback?.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        }
-    }
+    override fun performKeypress() =
+        perform(HapticFeedbackConstants.VIRTUAL_KEY, durationMs = 15L, amplitude = 100)
 
-    override fun performToggle() {
-        if (!vibrate(50L, VibrationEffect.DEFAULT_AMPLITUDE)) {
-            hapticFeedback?.performHapticFeedback(HapticFeedbackType.LongPress)
+    override fun performToggle() =
+        perform(HapticFeedbackConstants.LONG_PRESS, durationMs = 50L, amplitude = VibrationEffect.DEFAULT_AMPLITUDE)
+
+    private fun perform(feedbackConstant: Int, durationMs: Long, amplitude: Int) {
+        val performed = view?.performHapticFeedback(
+            feedbackConstant,
+            HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
+        ) ?: false
+        if (!performed) {
+            vibrate(durationMs, amplitude)
         }
     }
 
@@ -100,9 +104,9 @@ val LocalHapticsManager: ProvidableCompositionLocal<HapticsManager> = staticComp
  */
 @Composable
 fun rememberHapticsManager(): HapticsManager {
+    val view = LocalView.current
     val context = LocalContext.current
-    val hapticFeedback = LocalHapticFeedback.current
-    return remember(context, hapticFeedback) {
-        AndroidHapticsManager(context, hapticFeedback)
+    return remember(view, context) {
+        AndroidHapticsManager(view = view, context = context)
     }
 }
