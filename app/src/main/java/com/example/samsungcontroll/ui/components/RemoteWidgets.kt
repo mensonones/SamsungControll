@@ -19,8 +19,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import com.example.samsungcontroll.ui.animation.pressScale
 import com.example.samsungcontroll.ui.haptics.LocalHapticsManager
+import com.example.samsungcontroll.ui.theme.RemoteTokens
 
 @Composable
 fun RemoteButton(
@@ -43,7 +46,7 @@ fun RemoteButton(
             .background(
                 if (enabled) {
                     if (isPressed) color.copy(alpha = 0.8f) else color
-                } else Color(0xFF334155)
+                } else RemoteTokens.SurfaceDisabled
             )
             .clickable(
                 enabled = enabled,
@@ -58,7 +61,7 @@ fun RemoteButton(
         Icon(
             icon,
             contentDescription = contentDescription,
-            tint = if (enabled) Color.White else Color(0xFF64748B),
+            tint = if (enabled) Color.White else RemoteTokens.TextDisabled,
             modifier = Modifier.size(size * 0.54f)
         )
     }
@@ -112,11 +115,15 @@ fun RemoteSmallButton(
         modifier = modifier
             .heightIn(min = 44.dp)
             .pressScale(isPressed = isPressed, pressedScale = 0.96f)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(RemoteTokens.RadiusButton))
             .background(
                 if (enabled) {
-                    if (isPressed) Color(0xFF2D3A4F) else Color(0xFF1F2937)
-                } else Color(0xFF111827)
+                    if (isPressed) RemoteTokens.Surface3 else RemoteTokens.Surface2
+                } else RemoteTokens.SurfaceDisabled
+            )
+            .border(
+                BorderStroke(1.dp, if (enabled) RemoteTokens.Border else Color.Transparent),
+                RoundedCornerShape(RemoteTokens.RadiusButton)
             )
             .clickable(
                 enabled = enabled,
@@ -155,13 +162,17 @@ fun AppLaunchButton(
 
     Box(
         modifier = modifier
-            .height(44.dp)
+            .height(46.dp)
             .pressScale(isPressed = isPressed, pressedScale = 0.95f)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(RemoteTokens.RadiusButton))
             .background(
                 if (enabled) {
-                    if (isPressed) bgColor.copy(alpha = 0.85f) else bgColor
-                } else Color(0xFF111827)
+                    if (isPressed) RemoteTokens.Surface3 else RemoteTokens.Surface2
+                } else RemoteTokens.SurfaceDisabled
+            )
+            .border(
+                BorderStroke(1.dp, if (enabled) RemoteTokens.Border else Color.Transparent),
+                RoundedCornerShape(RemoteTokens.RadiusButton)
             )
             .clickable(
                 enabled = enabled,
@@ -170,15 +181,30 @@ fun AppLaunchButton(
             ) {
                 haptics.performClick()
                 onClick()
-            },
+            }
+            .padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            label,
-            color = if (enabled) textColor else Color(0xFF475569),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(if (enabled) bgColor else bgColor.copy(alpha = 0.35f))
+            )
+            Text(
+                label,
+                color = getEnabledColor(enabled),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
@@ -220,5 +246,5 @@ fun TvColorButton(
 }
 
 fun getEnabledColor(enabled: Boolean): Color {
-    return if (enabled) Color.White else Color(0xFF475569)
+    return if (enabled) RemoteTokens.TextPrimary else RemoteTokens.TextDisabled
 }

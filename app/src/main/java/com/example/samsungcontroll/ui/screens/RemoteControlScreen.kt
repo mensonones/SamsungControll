@@ -105,6 +105,7 @@ import com.example.samsungcontroll.ui.components.RemoteButton
 import com.example.samsungcontroll.ui.components.RemoteIconButton
 import com.example.samsungcontroll.ui.components.RemoteSmallButton
 import com.example.samsungcontroll.ui.components.getEnabledColor
+import com.example.samsungcontroll.ui.theme.RemoteTokens
 import com.example.samsungcontroll.ui.haptics.LocalHapticsManager
 import com.example.samsungcontroll.ui.haptics.rememberHapticsManager
 import kotlinx.coroutines.delay
@@ -1132,13 +1133,13 @@ private fun RemoteBody(
                         RemoteButton(
                             icon = Icons.Default.PowerSettingsNew,
                             contentDescription = "Ligar ou desligar TV",
-                            color = Color(0xFFE11D48),
+                            color = RemoteTokens.Power,
                             onClick = { triggerAction(onPower) },
                             size = 56.dp
                         )
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("SMART TV", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, letterSpacing = 1.sp)
-                            Text("Remote Control", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                            Text("SMART TV", color = RemoteTokens.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp, letterSpacing = 1.sp)
+                            Text("Remote Control", color = RemoteTokens.TextSecondary, fontSize = 11.sp)
                         }
                         RemoteSmallButton("123", enabled = isConnected) {
                             triggerAction { onSendKey("KEY_123") }
@@ -1275,7 +1276,7 @@ private fun RemoteBody(
                                     .weight(1f)
                                     .height(46.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isConnected) Color(0xFF1F2937) else Color(0xFF111827))
+                                    .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
                             ) {
                                 Icon(Icons.Default.SkipPrevious, contentDescription = "Anterior", tint = getEnabledColor(isConnected))
                             }
@@ -1286,7 +1287,7 @@ private fun RemoteBody(
                                     .weight(1f)
                                     .height(46.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isConnected) Color(0xFF1F2937) else Color(0xFF111827))
+                                    .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
                             ) {
                                 Icon(Icons.Default.FastRewind, contentDescription = "Retroceder", tint = getEnabledColor(isConnected))
                             }
@@ -1297,12 +1298,14 @@ private fun RemoteBody(
                                     .weight(1.2f)
                                     .height(46.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isConnected) Color(0xFF0284C7) else Color(0xFF111827))
+                                    .background(if (isConnected) RemoteTokens.Accent else RemoteTokens.SurfaceDisabled)
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                                    Icon(Icons.Default.Pause, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                                }
+                                Icon(
+                                    Icons.Default.PlayArrow,
+                                    contentDescription = "Reproduzir ou pausar",
+                                    tint = if (isConnected) Color.White else RemoteTokens.TextDisabled,
+                                    modifier = Modifier.size(24.dp)
+                                )
                             }
                             IconButton(
                                 onClick = { triggerAction { onSendKey("KEY_FF") } },
@@ -1311,7 +1314,7 @@ private fun RemoteBody(
                                     .weight(1f)
                                     .height(46.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isConnected) Color(0xFF1F2937) else Color(0xFF111827))
+                                    .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
                             ) {
                                 Icon(Icons.Default.FastForward, contentDescription = "Avançar", tint = getEnabledColor(isConnected))
                             }
@@ -1322,7 +1325,7 @@ private fun RemoteBody(
                                     .weight(1f)
                                     .height(46.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isConnected) Color(0xFF1F2937) else Color(0xFF111827))
+                                    .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
                             ) {
                                 Icon(Icons.Default.SkipNext, contentDescription = "Próximo", tint = getEnabledColor(isConnected))
                             }
@@ -1333,7 +1336,7 @@ private fun RemoteBody(
                                     .weight(1f)
                                     .height(46.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isConnected) Color(0xFF1F2937) else Color(0xFF111827))
+                                    .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
                             ) {
                                 Icon(Icons.Default.Stop, contentDescription = "Parar", tint = getEnabledColor(isConnected))
                             }
@@ -1463,8 +1466,13 @@ private fun RemoteSection(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = horizontalAlignment) {
-        Text(text = title.uppercase(), color = Color(0xFF94A3B8), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = title,
+            color = RemoteTokens.TextPrimary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(12.dp))
         content()
     }
 }
@@ -1521,13 +1529,21 @@ private fun RemoteRoundTextButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
+    val keyShape = RoundedCornerShape(RemoteTokens.RadiusKey)
     Box(
         modifier = modifier
-            .size(54.dp)
+            .height(52.dp)
             .pressScale(isPressed = isPressed, pressedScale = 0.92f)
-            .clip(CircleShape)
-            .background(if (enabled) Color(0xFF1F2937) else Color(0xFF111827))
-            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), CircleShape)
+            .clip(keyShape)
+            .background(
+                if (enabled) {
+                    if (isPressed) RemoteTokens.Surface3 else RemoteTokens.Surface2
+                } else RemoteTokens.SurfaceDisabled
+            )
+            .border(
+                BorderStroke(1.dp, if (enabled) RemoteTokens.Border else Color.Transparent),
+                keyShape
+            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(),
@@ -1538,7 +1554,7 @@ private fun RemoteRoundTextButton(
             },
         contentAlignment = Alignment.Center
     ) {
-        Text(label, color = getEnabledColor(enabled), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        Text(label, color = getEnabledColor(enabled), fontWeight = FontWeight.Bold, fontSize = 15.sp)
     }
 }
 
