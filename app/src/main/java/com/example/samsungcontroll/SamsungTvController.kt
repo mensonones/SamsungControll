@@ -25,6 +25,8 @@ class SamsungTvController(
     private val certificatePinStore: CertificatePinStore,
     private val onTokenReceived: (String) -> Unit = {},
     private val onError: (TvConnectionException) -> Unit = {},
+    private val onInstalledApps: (List<TvApp>) -> Unit = {},
+    private val onTextInputChange: (Boolean) -> Unit = {},
     private val onStateChange: (ConnectionState) -> Unit
 ) : TvController {
     private var webSocket: WebSocket? = null
@@ -97,6 +99,9 @@ class SamsungTvController(
                             isConnectedState = true
                             onStateChange(ConnectionState.CONNECTED)
                         }
+                        "ed.installedApp.get" -> parseInstalledApps(json)?.let(onInstalledApps)
+                        "ms.remote.imeStart" -> onTextInputChange(true)
+                        "ms.remote.imeEnd", "ms.remote.imeDone" -> onTextInputChange(false)
                         "ms.channel.unauthorized" -> {
                             isConnectedState = false
                             onError(TvConnectionException.PermissionDenied(tvIp))
@@ -162,6 +167,39 @@ class SamsungTvController(
             })
         }
         webSocket?.send(json.toString())
+    }
+
+    override fun sendText(text: String) {
+        val json = JSONObject().apply {
+            put("method", "ms.remote.control")
+            put("params", JSONObject().apply {
+                put("Cmd", Base64.encodeToString(text.toByteArray(), Base64.NO_WRAP))
+                put("DataOfCmd", "base64")
+                put("TypeOfRemote", "SendInputString")
+            })
+        }
+        webSocket?.send(json.toString())
+    }
+
+    override fun requestInstalledApps() {
+        val json = JSONObject().apply {
+            put("method", "ms.channel.emit")
+            put("params", JSONObject().apply {
+                put("event", "ed.installedApp.get")
+                put("to", "host")
+            })
+        }
+        webSocket?.send(json.toString())
+    }
+
+    private fun parseInstalledApps(json: JSONObject): List<TvApp>? {
+        val array = json.optJSONObject("data")?.optJSONArray("data") ?: return null
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val id = item.optString("appId").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val name = item.optString("name").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            TvApp(id, name)
+        }.sortedBy { it.name.lowercase() }
     }
 
     override fun launchApp(appId: String) {

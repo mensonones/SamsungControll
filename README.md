@@ -19,6 +19,10 @@ O projeto busca ser um controle simples, direto e privado para uso na rede local
   - **Aba 1: Controle Principal**: D-Pad neomórfico, Volume, Canais, Power, Mute, Navegação (`BACK`, `HOME`, `EXIT`) e tecla rápida `123`.
   - **Aba 2: Números & Guia**: Teclado numérico 0-9 em grade 3x4 (`1-9`, `Pre-Ch`, `0`, `123`), atalhos diretos de entrada (`HDMI 1`, `HDMI 2`, `HDMI 3`, `TV`) e teclas de função (`GUIDE`, `INFO`, `SOURCE`, `MENU`, `LEGENDA`, `TELA 16:9`, `TOOLS`).
   - **Aba 3: Mídia & Apps**: Botões de reprodução (`Play/Pause`, `Avançar ⏩`, `Retroceder ⏪`, `Anterior ⏮️`, `Próximo ⏭️`, `Parar ⏹️`) e 8 atalhos para apps (`Netflix`, `YouTube`, `Prime Video`, `Disney+`, `Max`, `Spotify`, `Globoplay`, `Apple TV`).
+- **Teclado e Lista de Apps**:
+  - Botão **Digitar na TV** (e abertura automática quando a TV foca um campo de texto) envia texto via `SendInputString`.
+  - A aba Mídia & Apps lista todos os aplicativos instalados na TV (`ed.installedApp.get`) além dos 8 atalhos fixos.
+- **Segurar para repetir**: setas do D-Pad, volume e canal repetem enquanto o dedo permanece pressionado.
 - **Informações Detalhadas da TV (REST API)**:
   - Consulta automática no endpoint REST local `http://IP:8001/api/v2/`.
   - Exibe no menu: Modelo da TV, Sistema Operacional (Tizen), Firmware, Tipo de Conexão (Wi-Fi/Ethernet), IP e MAC.

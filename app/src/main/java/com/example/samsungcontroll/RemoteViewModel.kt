@@ -52,6 +52,13 @@ class RemoteViewModel(
     var isMuted by mutableStateOf(false)
         private set
 
+    var installedApps by mutableStateOf<List<TvApp>>(emptyList())
+        private set
+
+    /** True while the TV has a text field focused (on-screen keyboard open on the TV). */
+    var tvTextInputActive by mutableStateOf(false)
+        private set
+
     var connectionError by mutableStateOf<TvConnectionException?>(null)
         private set
 
@@ -223,6 +230,8 @@ class RemoteViewModel(
         tvNickname = tvPreferences.getCustomNickname(cleanIp, savedIdentity) ?: ""
         controller?.disconnect()
         connectionError = null
+        installedApps = emptyList()
+        tvTextInputActive = false
         ipAddress = cleanIp
         
         controller = SamsungTvController(
@@ -235,6 +244,16 @@ class RemoteViewModel(
             onError = { error ->
                 viewModelScope.launch(Dispatchers.Main.immediate) {
                     if (currentAttempt == connectionAttempt) connectionError = error
+                }
+            },
+            onInstalledApps = { apps ->
+                viewModelScope.launch(Dispatchers.Main.immediate) {
+                    if (currentAttempt == connectionAttempt) installedApps = apps
+                }
+            },
+            onTextInputChange = { active ->
+                viewModelScope.launch(Dispatchers.Main.immediate) {
+                    if (currentAttempt == connectionAttempt) tvTextInputActive = active
                 }
             },
             onStateChange = { newState ->
@@ -279,6 +298,7 @@ class RemoteViewModel(
                 showDiscovery = false
                 saveResolvedMacAddress(cleanIp, savedIdentity)
                 startConnectionService()
+                controller?.requestInstalledApps()
             } else {
                 stopConnectionService()
             }
@@ -407,6 +427,14 @@ class RemoteViewModel(
 
     fun sendKey(key: String) {
         controller?.sendKey(key)
+    }
+
+    fun sendText(text: String) {
+        controller?.sendText(text)
+    }
+
+    fun refreshInstalledApps() {
+        controller?.requestInstalledApps()
     }
 
     fun launchApp(appId: String) {

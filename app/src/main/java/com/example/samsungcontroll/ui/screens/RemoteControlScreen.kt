@@ -58,7 +58,12 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Tv
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
@@ -101,6 +106,7 @@ import com.example.samsungcontroll.ConnectionState
 import com.example.samsungcontroll.DiscoveredTv
 import com.example.samsungcontroll.R
 import com.example.samsungcontroll.RemoteViewModel
+import com.example.samsungcontroll.TvApp
 import com.example.samsungcontroll.TvConnectionException
 import com.example.samsungcontroll.TvDeviceInfo
 import com.example.samsungcontroll.ui.animation.pressScale
@@ -174,6 +180,20 @@ fun RemoteControlScreen(viewModel: RemoteViewModel) {
 private fun RemoteControlContent(viewModel: RemoteViewModel) {
     var showNicknameDialog by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
+    var showKeyboardDialog by remember { mutableStateOf(false) }
+
+    // The TV opened a text field (search box, password…): bring up our keyboard dialog.
+    LaunchedEffect(viewModel.tvTextInputActive) {
+        if (viewModel.tvTextInputActive) showKeyboardDialog = true
+    }
+
+    if (showKeyboardDialog) {
+        TvKeyboardDialog(
+            onSend = { viewModel.sendText(it) },
+            onEnter = { viewModel.sendKey("KEY_ENTER") },
+            onDismiss = { showKeyboardDialog = false }
+        )
+    }
 
     if (showNicknameDialog) {
         NicknameDialog(
@@ -260,7 +280,10 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
                 onPower = { viewModel.togglePower() },
                 onToggleMute = { viewModel.toggleMute() },
                 onSendKey = { viewModel.sendKey(it) },
-                onLaunchApp = { viewModel.launchApp(it) }
+                onLaunchApp = { viewModel.launchApp(it) },
+                installedApps = viewModel.installedApps,
+                onRefreshApps = { viewModel.refreshInstalledApps() },
+                onShowKeyboard = { showKeyboardDialog = true }
             )
         }
     }
@@ -314,6 +337,52 @@ private fun TvDetailsDialog(
                 shape = CircleShape
             ) {
                 Text("Fechar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        }
+    )
+}
+
+@Composable
+private fun TvKeyboardDialog(
+    onSend: (String) -> Unit,
+    onEnter: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var text by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF111827),
+        title = { Text("Digitar na TV", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                placeholder = { Text("Texto para a TV", fontSize = 13.sp, color = Color(0xFF64748B)) },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = {
+                    onSend(text)
+                    onEnter()
+                    onDismiss()
+                }),
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester)
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onSend(text); onEnter(); onDismiss() }) {
+                Text("Enviar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { onSend(text) }) {
+                Text("Só digitar", color = Color(0xFF94A3B8), fontSize = 13.sp)
+            }
+            TextButton(onClick = onDismiss) {
+                Text("Fechar", color = Color(0xFF94A3B8), fontSize = 13.sp)
             }
         }
     )
@@ -1067,7 +1136,10 @@ private fun RemoteBody(
     onPower: () -> Unit,
     onToggleMute: () -> Unit,
     onSendKey: (String) -> Unit,
-    onLaunchApp: (String) -> Unit
+    onLaunchApp: (String) -> Unit,
+    installedApps: List<TvApp>,
+    onRefreshApps: () -> Unit,
+    onShowKeyboard: () -> Unit
 ) {
     val haptics = LocalHapticsManager.current
     val isConnected = state == ConnectionState.CONNECTED
@@ -1412,6 +1484,43 @@ private fun RemoteBody(
                                     triggerAction { onLaunchApp("3201807016597") }
                                 }
                             }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    RemoteSection(title = "Todos os aplicativos") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (installedApps.isEmpty()) {
+                                Text(
+                                    if (isConnected) "Nenhum aplicativo carregado ainda." else "Conecte-se à TV para listar os aplicativos.",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 12.sp
+                                )
+                            }
+                            installedApps.chunked(3).forEach { row ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                    row.forEach { app ->
+                                        AppLaunchButton(app.name, Color(0xFF38BDF8), isConnected, modifier = Modifier.weight(1f)) {
+                                            triggerAction { onLaunchApp(app.appId) }
+                                        }
+                                    }
+                                    repeat(3 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
+                                }
+                            }
+                            RemoteSmallButton(
+                                if (installedApps.isEmpty()) "CARREGAR APLICATIVOS" else "ATUALIZAR LISTA",
+                                enabled = isConnected,
+                                modifier = Modifier.fillMaxWidth()
+                            ) { onRefreshApps() }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    RemoteSection(title = "Teclado") {
+                        RemoteSmallButton("DIGITAR NA TV", enabled = isConnected, modifier = Modifier.fillMaxWidth()) {
+                            onShowKeyboard()
                         }
                     }
                 }
