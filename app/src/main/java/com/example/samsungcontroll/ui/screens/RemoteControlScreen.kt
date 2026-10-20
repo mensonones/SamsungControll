@@ -126,7 +126,13 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.platform.LocalContext
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -210,7 +216,22 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
     }
 
     if (showSettingsDialog) {
+        val context = LocalContext.current
+        val notificationPermission = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { }
         SettingsDialog(
+            backgroundControlEnabled = viewModel.backgroundControlEnabled,
+            onBackgroundControlChange = { enabled ->
+                viewModel.updateBackgroundControlEnabled(enabled)
+                // The keep-alive notification needs the runtime permission on Android 13+.
+                if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                    PackageManager.PERMISSION_GRANTED
+                ) {
+                    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            },
             hapticsEnabled = viewModel.hapticsEnabled,
             volumeKeysEnabled = viewModel.volumeKeysEnabled,
             idleTimeoutMinutes = viewModel.idleTimeoutMinutes,
@@ -316,6 +337,8 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SettingsDialog(
+    backgroundControlEnabled: Boolean,
+    onBackgroundControlChange: (Boolean) -> Unit,
     hapticsEnabled: Boolean,
     volumeKeysEnabled: Boolean,
     idleTimeoutMinutes: Int,
@@ -336,6 +359,14 @@ private fun SettingsDialog(
                     volumeKeysEnabled,
                     onVolumeKeysChange
                 )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SettingSwitchRow(stringResource(R.string.settings_background_control), backgroundControlEnabled, onBackgroundControlChange)
+                    Text(
+                        stringResource(R.string.settings_background_control_hint),
+                        color = RemoteTokens.TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(stringResource(R.string.settings_idle_timeout), color = RemoteTokens.TextPrimary, fontSize = 13.sp)
                     FlowRow(

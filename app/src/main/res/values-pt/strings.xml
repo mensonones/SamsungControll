@@ -128,4 +128,6 @@
     <string name="shortcut_label_open">Abrir %1$s</string>
     <string name="shortcut_label_input">TV: %1$s</string>
     <string name="shortcut_pin_unsupported">Seu launcher não suporta atalhos fixos</string>
+    <string name="settings_background_control">Manter conectado em segundo plano</string>
+    <string name="settings_background_control_hint">Os botões de volume controlam a TV mesmo com a tela apagada. Mostra uma notificação enquanto conectado.</string>
 </resources>

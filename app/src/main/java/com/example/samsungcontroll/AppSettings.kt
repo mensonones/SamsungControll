@@ -16,6 +16,14 @@ class AppSettings(context: Context) {
         get() = prefs.getBoolean(KEY_VOLUME_KEYS, true)
         set(value) = prefs.edit { putBoolean(KEY_VOLUME_KEYS, value) }
 
+    /**
+     * Keeps the connection alive in the background (foreground service + notification) so the
+     * phone's volume buttons control the TV even with the screen off. Off by default.
+     */
+    var backgroundControlEnabled: Boolean
+        get() = prefs.getBoolean(KEY_BACKGROUND_CONTROL, false)
+        set(value) = prefs.edit { putBoolean(KEY_BACKGROUND_CONTROL, value) }
+
     /** Minutes without interaction before the connection is closed; 0 keeps it open. */
     var idleTimeoutMinutes: Int
         get() = prefs.getInt(KEY_IDLE_TIMEOUT, 0)
@@ -30,6 +38,7 @@ class AppSettings(context: Context) {
         val IDLE_TIMEOUT_OPTIONS = listOf(0, 15, 30, 60)
         private const val PREFS_NAME = "app_settings"
         private const val KEY_HAPTICS = "haptics_enabled"
+        private const val KEY_BACKGROUND_CONTROL = "background_control_enabled"
         private const val KEY_VOLUME_KEYS = "volume_keys_enabled"
         private const val KEY_FAVORITE_APPS = "favorite_app_ids"
         private const val KEY_IDLE_TIMEOUT = "idle_timeout_minutes"

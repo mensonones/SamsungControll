@@ -131,4 +131,6 @@
     <string name="shortcut_label_open">Open %1$s</string>
     <string name="shortcut_label_input">TV: %1$s</string>
     <string name="shortcut_pin_unsupported">Your launcher does not support pinned shortcuts</string>
+    <string name="settings_background_control">Keep connected in the background</string>
+    <string name="settings_background_control_hint">Volume buttons control the TV even with the screen off. Shows a notification while connected.</string>
 </resources>

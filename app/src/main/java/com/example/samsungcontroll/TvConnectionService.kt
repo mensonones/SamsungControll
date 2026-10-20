@@ -9,6 +9,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.media.VolumeProvider
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -23,6 +26,8 @@ import androidx.core.content.ContextCompat
  */
 class TvConnectionService : Service() {
 
+    private var volumeSession: MediaSession? = null
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -36,9 +41,42 @@ class TvConnectionService : Service() {
         val label = intent?.getStringExtra(EXTRA_TV_LABEL)?.takeIf { it.isNotBlank() }
             ?: getString(R.string.app_name)
         startForegroundCompat(buildNotification(label))
+        startVolumeSession()
         // If the system kills us under memory pressure, do not recreate the service:
         // reconnection is handled by the app when it returns to the foreground.
         return START_NOT_STICKY
+    }
+
+    /**
+     * A remote-playback media session makes the system route the hardware volume buttons to us
+     * even with the screen off; each press is forwarded to the app, which sends the TV key.
+     */
+    private fun startVolumeSession() {
+        if (volumeSession != null) return
+        val session = MediaSession(this, "TvVolume")
+        session.setPlaybackState(
+            PlaybackState.Builder()
+                .setState(PlaybackState.STATE_PLAYING, 0L, 0f)
+                .build()
+        )
+        session.setPlaybackToRemote(object : VolumeProvider(VOLUME_CONTROL_RELATIVE, 100, 50) {
+            override fun onAdjustVolume(direction: Int) {
+                if (direction == 0) return
+                sendBroadcast(
+                    Intent(ACTION_VOLUME)
+                        .setPackage(packageName)
+                        .putExtra(EXTRA_VOLUME_DIRECTION, direction)
+                )
+            }
+        })
+        session.isActive = true
+        volumeSession = session
+    }
+
+    override fun onDestroy() {
+        volumeSession?.release()
+        volumeSession = null
+        super.onDestroy()
     }
 
     private fun startForegroundCompat(notification: Notification) {
@@ -112,6 +150,10 @@ class TvConnectionService : Service() {
     companion object {
         /** Broadcast action fired when the user taps "Disconnect" on the notification. */
         const val ACTION_DISCONNECT = "com.example.samsungcontroll.action.DISCONNECT"
+
+        /** Broadcast action carrying a hardware volume press ([EXTRA_VOLUME_DIRECTION] = +1 / -1). */
+        const val ACTION_VOLUME = "com.example.samsungcontroll.action.VOLUME"
+        const val EXTRA_VOLUME_DIRECTION = "direction"
 
         private const val CHANNEL_ID = "tv_connection"
         private const val NOTIFICATION_ID = 1001

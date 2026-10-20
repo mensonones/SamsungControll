@@ -59,6 +59,9 @@ class RemoteViewModel(
     var hapticsEnabled by mutableStateOf(appSettings.hapticsEnabled)
         private set
 
+    var backgroundControlEnabled by mutableStateOf(appSettings.backgroundControlEnabled)
+        private set
+
     var volumeKeysEnabled by mutableStateOf(appSettings.volumeKeysEnabled)
         private set
 
@@ -113,15 +116,25 @@ class RemoteViewModel(
         if (disconnectReceiver != null) return
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action == TvConnectionService.ACTION_DISCONNECT) {
-                    disconnect()
+                when (intent?.action) {
+                    TvConnectionService.ACTION_DISCONNECT -> disconnect()
+                    TvConnectionService.ACTION_VOLUME -> {
+                        // Hardware volume pressed while the app is in the background / screen off.
+                        val direction = intent.getIntExtra(TvConnectionService.EXTRA_VOLUME_DIRECTION, 0)
+                        if (volumeKeysEnabled && connectionState == ConnectionState.CONNECTED && direction != 0) {
+                            sendKey(if (direction > 0) "KEY_VOLUP" else "KEY_VOLDOWN")
+                        }
+                    }
                 }
             }
         }
         ContextCompat.registerReceiver(
             getApplication<Application>(),
             receiver,
-            IntentFilter(TvConnectionService.ACTION_DISCONNECT),
+            IntentFilter().apply {
+                addAction(TvConnectionService.ACTION_DISCONNECT)
+                addAction(TvConnectionService.ACTION_VOLUME)
+            },
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
         disconnectReceiver = receiver
@@ -502,6 +515,14 @@ class RemoteViewModel(
         appSettings.hapticsEnabled = enabled
     }
 
+    fun updateBackgroundControlEnabled(enabled: Boolean) {
+        backgroundControlEnabled = enabled
+        appSettings.backgroundControlEnabled = enabled
+        if (connectionState == ConnectionState.CONNECTED) {
+            if (enabled) startConnectionService() else stopConnectionService()
+        }
+    }
+
     fun updateVolumeKeysEnabled(enabled: Boolean) {
         volumeKeysEnabled = enabled
         appSettings.volumeKeysEnabled = enabled
@@ -608,6 +629,7 @@ class RemoteViewModel(
     }
 
     private fun startConnectionService() {
+        if (!backgroundControlEnabled) return
         val label = tvNickname.takeIf { it.isNotBlank() } ?: ipAddress
         // Android 12+ refuses to start a foreground service from the background (e.g. a
         // network-triggered reconnect). The connection still works; we just skip the keep-alive.
