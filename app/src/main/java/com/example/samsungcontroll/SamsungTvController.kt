@@ -24,10 +24,11 @@ class SamsungTvController(
     private var token: String? = null,
     private val certificatePinStore: CertificatePinStore,
     private val onTokenReceived: (String) -> Unit = {},
+    private val onError: (TvConnectionException) -> Unit = {},
     private val onStateChange: (ConnectionState) -> Unit
 ) : TvController {
     private var webSocket: WebSocket? = null
-    private var isConnectedState = false
+    @Volatile private var isConnectedState = false
 
     private val client: OkHttpClient by lazy {
         createHttpClient()
@@ -38,6 +39,7 @@ class SamsungTvController(
     override fun connect() {
         if (!isLocalNetworkHost(tvIp)) {
             isConnectedState = false
+            onError(TvConnectionException.NetworkUnreachable(tvIp))
             onStateChange(ConnectionState.FAILED)
             return
         }
@@ -97,6 +99,7 @@ class SamsungTvController(
                         }
                         "ms.channel.unauthorized" -> {
                             isConnectedState = false
+                            onError(TvConnectionException.PermissionDenied(tvIp))
                             onStateChange(ConnectionState.WAITING_FOR_PERMISSION)
                         }
                     }
@@ -108,10 +111,17 @@ class SamsungTvController(
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 isConnectedState = false
                 response?.close()
-                if (port == 8002 && !hasSavedToken) {
+                if (t.hasCause<CertificatePinMismatchException>()) {
+                    // Never fall back to cleartext when the pinned certificate changed:
+                    // that would let anyone on the LAN bypass the pin.
+                    Log.w("SamsungTv", "TV certificate does not match the pinned one", t)
+                    onError(TvConnectionException.CertificateMismatch(tvIp))
+                    onStateChange(ConnectionState.FAILED)
+                } else if (port == 8002 && !hasSavedToken) {
                     connectInternal(8001, false)
                 } else {
                     Log.w("SamsungTv", "Unable to connect to Samsung TV", t)
+                    onError(TvConnectionException.NetworkUnreachable(tvIp, t))
                     onStateChange(ConnectionState.FAILED)
                 }
             }
@@ -205,6 +215,11 @@ class SamsungTvController(
     }
 }
 
+private class CertificatePinMismatchException(message: String) : CertificateException(message)
+
+private inline fun <reified T : Throwable> Throwable.hasCause(): Boolean =
+    generateSequence(this) { it.cause }.take(10).any { it is T }
+
 @SuppressLint("CustomX509TrustManager")
 private class PinnedCertificateTrustManager(
     private val host: String,
@@ -222,7 +237,7 @@ private class PinnedCertificateTrustManager(
         when {
             pinnedFingerprint == null -> certificatePinStore.saveCertificateFingerprint(host, fingerprint)
             !pinnedFingerprint.equals(fingerprint, ignoreCase = true) -> {
-                throw CertificateException("Samsung TV certificate changed for $host")
+                throw CertificatePinMismatchException("Samsung TV certificate changed for $host")
             }
         }
     }

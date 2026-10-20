@@ -123,6 +123,15 @@ class SecureTvPreferences(context: Context) : CertificatePinStore {
         prefs.edit { putString(certificateKey(host), fingerprint) }
     }
 
+    /** Drops the pinned certificate and tokens so the TV can be paired again from scratch. */
+    fun forgetPairing(ip: String, identity: String? = null) {
+        prefs.edit {
+            remove(certificateKey(ip))
+            remove(legacyTokenKey(ip))
+            tokenAliases(ip, identity).forEach { alias -> remove(tokenKey(alias)) }
+        }
+    }
+
     private fun encrypt(value: String): String {
         val cipher = Cipher.getInstance(CIPHER_TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())

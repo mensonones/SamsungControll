@@ -52,6 +52,9 @@ class RemoteViewModel(
     var isMuted by mutableStateOf(false)
         private set
 
+    var connectionError by mutableStateOf<TvConnectionException?>(null)
+        private set
+
     var tvDeviceInfo by mutableStateOf<TvDeviceInfo?>(null)
         private set
     
@@ -71,7 +74,8 @@ class RemoteViewModel(
         tvNickname = tvPreferences.getCustomNickname(lastIp, lastIdentity) ?: ""
         if (lastIp.isNotBlank() && connectionState == ConnectionState.DISCONNECTED) {
             ipAddress = lastIp
-            connectToLastTv(lastIp, lastIdentity)
+            // Direct attempt first; Wake-on-LAN only if the TV doesn't answer.
+            connectToTv(lastIp, lastIdentity, wakeOnFailure = true, retriesAfterWake = 0)
         }
         registerNetworkMonitoring()
         registerDisconnectReceiver()
@@ -131,6 +135,7 @@ class RemoteViewModel(
         if (controller?.isConnected() == true && connectionState == ConnectionState.CONNECTED) {
             return
         }
+        if (connectionState == ConnectionState.CONNECTING) return
         val lastIp = tvPreferences.getLastConnectedIp()
         val lastIdentity = tvPreferences.getLastConnectedIdentity()
         if (lastIp.isNotBlank()) {
@@ -216,6 +221,7 @@ class RemoteViewModel(
         macAddress = tvPreferences.getMacAddress(cleanIp, savedIdentity)
         tvNickname = tvPreferences.getCustomNickname(cleanIp, savedIdentity) ?: ""
         controller?.disconnect()
+        connectionError = null
         ipAddress = cleanIp
         
         controller = SamsungTvController(
@@ -225,10 +231,20 @@ class RemoteViewModel(
             onTokenReceived = { newToken ->
                 tvPreferences.saveToken(cleanIp, savedIdentity, newToken)
             },
+            onError = { error ->
+                viewModelScope.launch(Dispatchers.Main.immediate) {
+                    if (currentAttempt == connectionAttempt) connectionError = error
+                }
+            },
             onStateChange = { newState ->
                 viewModelScope.launch(Dispatchers.Main.immediate) {
                     if (currentAttempt == connectionAttempt) {
-                        if (newState == ConnectionState.FAILED && wakeOnFailure && macAddress.isNotBlank()) {
+                        val certMismatch = connectionError is TvConnectionException.CertificateMismatch
+                        if (newState == ConnectionState.FAILED && certMismatch) {
+                            // Waking the TV can't fix a changed certificate; surface it.
+                            connectionState = newState
+                            stopConnectionService()
+                        } else if (newState == ConnectionState.FAILED && wakeOnFailure && macAddress.isNotBlank()) {
                             connectionState = ConnectionState.CONNECTING
                             wakeAndReconnect(currentAttempt, cleanIp, savedIdentity)
                         } else if (newState == ConnectionState.FAILED && retriesAfterWake > 0) {
@@ -252,8 +268,25 @@ class RemoteViewModel(
 
     fun reconnect() {
         if (ipAddress.isNotBlank()) {
-            connectToLastTv(ipAddress, tvPreferences.getLastConnectedIdentity())
+            connectToTv(
+                ipAddress,
+                tvPreferences.getLastConnectedIdentity(),
+                wakeOnFailure = true,
+                retriesAfterWake = 0
+            )
         }
+    }
+
+    /**
+     * Clears the pinned certificate and token of the current TV and connects again,
+     * e.g. after a firmware update regenerated the TV's certificate.
+     */
+    fun forgetPairingAndReconnect() {
+        val ip = ipAddress.trim()
+        if (ip.isBlank()) return
+        val identity = tvPreferences.getLastConnectedIdentity()
+        tvPreferences.forgetPairing(ip, identity)
+        connectToTv(ip, identity, wakeOnFailure = false, retriesAfterWake = 0)
     }
 
     fun togglePower() {
@@ -287,45 +320,6 @@ class RemoteViewModel(
                 connectToTv(targetIp, identity, wakeOnFailure = false, retriesAfterWake = WAKE_RECONNECT_RETRIES)
             } else {
                 connectionState = ConnectionState.DISCONNECTED
-            }
-        }
-    }
-
-    private fun connectToLastTv(targetIp: String, identity: String?) {
-        val cleanMac = normalizeMacAddress(macAddress)
-        if (cleanMac == null) {
-            Log.w("RemoteViewModel", "No valid MAC saved for $targetIp; connecting without WOL")
-            connectToTv(targetIp, identity, wakeOnFailure = false, retriesAfterWake = 0)
-            return
-        }
-
-        tvPreferences.saveMacAddress(cleanMac, targetIp, identity)
-        macAddress = cleanMac
-        val attempt = ++connectionAttempt
-        connectionState = ConnectionState.CONNECTING
-
-        viewModelScope.launch {
-            Log.d("RemoteViewModel", "Sending WOL before connecting to $targetIp with MAC $cleanMac")
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    wakeOnLanSender.send(cleanMac, targetIp)
-                }
-            }.onFailure { error ->
-                Log.w("RemoteViewModel", "Unable to send WOL to $targetIp", error)
-                if (attempt == connectionAttempt) {
-                    connectionState = ConnectionState.FAILED
-                }
-                return@launch
-            }
-
-            delay(WAKE_INITIAL_RECONNECT_DELAY_MS)
-            if (attempt == connectionAttempt && connectionState == ConnectionState.CONNECTING) {
-                connectToTv(
-                    targetIp,
-                    identity,
-                    wakeOnFailure = false,
-                    retriesAfterWake = WAKE_RECONNECT_RETRIES
-                )
             }
         }
     }
@@ -411,7 +405,10 @@ class RemoteViewModel(
 
     private fun startConnectionService() {
         val label = tvNickname.takeIf { it.isNotBlank() } ?: ipAddress
-        TvConnectionService.start(getApplication<Application>(), label)
+        // Android 12+ refuses to start a foreground service from the background (e.g. a
+        // network-triggered reconnect). The connection still works; we just skip the keep-alive.
+        runCatching { TvConnectionService.start(getApplication<Application>(), label) }
+            .onFailure { Log.w("RemoteViewModel", "Unable to start connection service", it) }
     }
 
     private fun stopConnectionService() {
