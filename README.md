@@ -24,6 +24,7 @@ O projeto busca ser um controle simples, direto e privado para uso na rede local
   - A aba Mídia & Apps lista todos os aplicativos instalados na TV (`ed.installedApp.get`) além dos 8 atalhos fixos.
 - **Configurações** (menu ⋮): liga/desliga vibração, escolhe se os botões de volume do celular controlam a TV e define um tempo de inatividade (15/30/60 min) para desconectar sozinho e liberar a notificação.
 - **Várias TVs**: toda TV conectada fica salva no menu ⋮, onde dá para trocar de TV com um toque ou esquecê-la (apaga token e certificado). O Tile e a reconexão automática seguem a TV ativa.
+- **Idiomas**: interface em inglês (padrão) e português, via `strings.xml` (`values/` e `values-pt/`); o app segue o idioma do sistema.
 - **Segurar para repetir**: setas do D-Pad, volume e canal repetem enquanto o dedo permanece pressionado.
 - **Informações Detalhadas da TV (REST API)**:
   - Consulta automática no endpoint REST local `http://IP:8001/api/v2/`.

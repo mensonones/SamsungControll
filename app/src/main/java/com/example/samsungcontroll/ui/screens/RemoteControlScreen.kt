@@ -106,6 +106,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import com.example.samsungcontroll.AppSettings
 import com.example.samsungcontroll.ConnectionState
 import com.example.samsungcontroll.DiscoveredTv
@@ -203,23 +204,22 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
         AlertDialog(
             onDismissRequest = { tvToForget = null },
             containerColor = Color(0xFF111827),
-            title = { Text("Esquecer TV?", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+            title = { Text(stringResource(R.string.forget_tv_title), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
             text = {
                 Text(
-                    "${viewModel.displayName(tv)} será removida e o pareamento apagado. " +
-                        "Será preciso aceitar o pedido na TV novamente.",
+                    stringResource(R.string.forget_tv_message, viewModel.displayName(tv)),
                     color = Color(0xFFCBD5E1),
                     fontSize = 13.sp
                 )
             },
             confirmButton = {
                 TextButton(onClick = { viewModel.forgetTv(tv); tvToForget = null }) {
-                    Text("Esquecer", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(stringResource(R.string.action_forget), color = Color(0xFFEF4444), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { tvToForget = null }) {
-                    Text("Cancelar", color = Color(0xFF94A3B8), fontSize = 13.sp)
+                    Text(stringResource(R.string.action_cancel), color = Color(0xFF94A3B8), fontSize = 13.sp)
                 }
             }
         )
@@ -365,7 +365,7 @@ private fun TvDetailsDialog(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Informações da TV",
+                    text = stringResource(R.string.tv_info_title),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
@@ -374,15 +374,15 @@ private fun TvDetailsDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                DetailRow("Modelo da TV:", deviceInfo?.modelName ?: "Samsung Smart TV")
-                DetailRow("Sistema Operacional:", deviceInfo?.os ?: "Tizen OS")
+                DetailRow(stringResource(R.string.tv_info_model), deviceInfo?.modelName ?: "Samsung Smart TV")
+                DetailRow(stringResource(R.string.tv_info_os), deviceInfo?.os ?: "Tizen OS")
                 if (!deviceInfo?.firmwareVersion.isNullOrBlank()) {
-                    DetailRow("Firmware:", deviceInfo.firmwareVersion)
+                    DetailRow(stringResource(R.string.tv_info_firmware), deviceInfo.firmwareVersion)
                 }
-                DetailRow("Tipo de Rede:", deviceInfo?.networkType ?: "Wi-Fi")
-                DetailRow("Endereço IP:", ipAddress.ifBlank { "Não informado" })
+                DetailRow(stringResource(R.string.tv_info_network), deviceInfo?.networkType ?: "Wi-Fi")
+                DetailRow(stringResource(R.string.tv_info_ip), ipAddress.ifBlank { stringResource(R.string.tv_info_unknown) })
                 if (macAddress.isNotBlank()) {
-                    DetailRow("Endereço MAC:", macAddress)
+                    DetailRow(stringResource(R.string.tv_info_mac), macAddress)
                 }
             }
         },
@@ -392,7 +392,7 @@ private fun TvDetailsDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
                 shape = CircleShape
             ) {
-                Text("Fechar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(stringResource(R.string.action_close), fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
         }
     )
@@ -411,23 +411,23 @@ private fun SettingsDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF111827),
-        title = { Text("Configurações", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+        title = { Text(stringResource(R.string.settings_title), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                SettingSwitchRow("Vibração ao tocar", hapticsEnabled, onHapticsChange)
+                SettingSwitchRow(stringResource(R.string.settings_haptics), hapticsEnabled, onHapticsChange)
                 SettingSwitchRow(
-                    "Botões de volume do celular controlam a TV",
+                    stringResource(R.string.settings_volume_keys),
                     volumeKeysEnabled,
                     onVolumeKeysChange
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Desconectar após inatividade", color = Color.White, fontSize = 13.sp)
+                    Text(stringResource(R.string.settings_idle_timeout), color = Color.White, fontSize = 13.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         AppSettings.IDLE_TIMEOUT_OPTIONS.forEach { minutes ->
                             FilterChip(
                                 selected = minutes == idleTimeoutMinutes,
                                 onClick = { onIdleTimeoutChange(minutes) },
-                                label = { Text(if (minutes == 0) "Nunca" else "$minutes min", fontSize = 12.sp) }
+                                label = { Text(if (minutes == 0) stringResource(R.string.settings_idle_never) else stringResource(R.string.settings_idle_minutes, minutes), fontSize = 12.sp) }
                             )
                         }
                     }
@@ -436,7 +436,7 @@ private fun SettingsDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Fechar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(stringResource(R.string.action_close), fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
         }
     )
@@ -465,13 +465,13 @@ private fun TvKeyboardDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF111827),
-        title = { Text("Digitar na TV", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+        title = { Text(stringResource(R.string.keyboard_title), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
         text = {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
                 singleLine = true,
-                placeholder = { Text("Texto para a TV", fontSize = 13.sp, color = Color(0xFF64748B)) },
+                placeholder = { Text(stringResource(R.string.keyboard_placeholder), fontSize = 13.sp, color = Color(0xFF64748B)) },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = {
                     onSend(text)
@@ -483,15 +483,15 @@ private fun TvKeyboardDialog(
         },
         confirmButton = {
             TextButton(onClick = { onSend(text); onEnter(); onDismiss() }) {
-                Text("Enviar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(stringResource(R.string.action_send), fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
         },
         dismissButton = {
             TextButton(onClick = { onSend(text) }) {
-                Text("Só digitar", color = Color(0xFF94A3B8), fontSize = 13.sp)
+                Text(stringResource(R.string.keyboard_type_only), color = Color(0xFF94A3B8), fontSize = 13.sp)
             }
             TextButton(onClick = onDismiss) {
-                Text("Fechar", color = Color(0xFF94A3B8), fontSize = 13.sp)
+                Text(stringResource(R.string.action_close), color = Color(0xFF94A3B8), fontSize = 13.sp)
             }
         }
     )
@@ -513,7 +513,7 @@ private fun NicknameDialog(
     onSave: (String) -> Unit
 ) {
     var textValue by remember { mutableStateOf(currentNickname) }
-    val presets = listOf("TV da Sala", "TV do Quarto", "Varanda", "Cozinha")
+    val presets = listOf(stringResource(R.string.preset_living_room), stringResource(R.string.preset_bedroom), stringResource(R.string.preset_balcony), stringResource(R.string.preset_kitchen))
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -528,7 +528,7 @@ private fun NicknameDialog(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Apelidar esta TV",
+                    text = stringResource(R.string.nickname_title),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
@@ -538,7 +538,7 @@ private fun NicknameDialog(
         text = {
             Column {
                 Text(
-                    text = "Defina um nome personalizado para identificar esta TV:",
+                    text = stringResource(R.string.nickname_message),
                     color = Color(0xFF94A3B8),
                     fontSize = 12.sp
                 )
@@ -560,7 +560,7 @@ private fun NicknameDialog(
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
-                Text("Sugestões rápidas:", color = Color(0xFFCBD5E1), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.nickname_suggestions), color = Color(0xFFCBD5E1), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Row(
@@ -596,12 +596,12 @@ private fun NicknameDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
                 shape = CircleShape
             ) {
-                Text("Salvar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(stringResource(R.string.action_save), fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar", color = Color(0xFF94A3B8), fontSize = 13.sp)
+                Text(stringResource(R.string.action_cancel), color = Color(0xFF94A3B8), fontSize = 13.sp)
             }
         }
     )
@@ -625,7 +625,7 @@ private fun BrandedSplash() {
         ) {
             Image(
                 painter = painterResource(R.drawable.app_logo_mark),
-                contentDescription = "Samsung Control Logo",
+                contentDescription = stringResource(R.string.cd_logo_control),
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.size(96.dp)
             )
@@ -754,11 +754,11 @@ private fun RemoteHeader(
     var showMenu by remember { mutableStateOf(false) }
 
     val (statusText, statusColor) = when (connectionState) {
-        ConnectionState.DISCONNECTED -> "Desconectado" to Color(0xFF94A3B8)
-        ConnectionState.CONNECTING -> "Conectando..." to Color(0xFF38BDF8)
-        ConnectionState.WAITING_FOR_PERMISSION -> "Permita na TV" to Color(0xFFF59E0B)
-        ConnectionState.CONNECTED -> "Conectado" to Color(0xFF22C55E)
-        ConnectionState.FAILED -> "Falha na conexão" to Color(0xFFEF4444)
+        ConnectionState.DISCONNECTED -> stringResource(R.string.status_disconnected) to Color(0xFF94A3B8)
+        ConnectionState.CONNECTING -> stringResource(R.string.status_connecting) to Color(0xFF38BDF8)
+        ConnectionState.WAITING_FOR_PERMISSION -> stringResource(R.string.status_permission) to Color(0xFFF59E0B)
+        ConnectionState.CONNECTED -> stringResource(R.string.status_connected) to Color(0xFF22C55E)
+        ConnectionState.FAILED -> stringResource(R.string.status_failed) to Color(0xFFEF4444)
     }
 
     Card(
@@ -806,7 +806,7 @@ private fun RemoteHeader(
                 ) {
                     Image(
                         painter = painterResource(R.drawable.app_logo_mark),
-                        contentDescription = "Samsung Logo",
+                        contentDescription = stringResource(R.string.cd_logo),
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -850,7 +850,7 @@ private fun RemoteHeader(
                             Spacer(modifier = Modifier.width(5.dp))
                             Icon(
                                 Icons.Default.Refresh,
-                                contentDescription = "Tentar reconectar",
+                                contentDescription = stringResource(R.string.cd_retry_connect),
                                 tint = statusColor,
                                 modifier = Modifier.size(13.dp)
                             )
@@ -892,7 +892,7 @@ private fun RemoteHeader(
                     ) {
                         Icon(
                             Icons.Default.Search,
-                            contentDescription = "Buscar TV na rede",
+                            contentDescription = stringResource(R.string.cd_search_tv),
                             tint = if (isDiscoveryActive || isSearching) Color(0xFF38BDF8) else Color.White,
                             modifier = Modifier.size(20.dp)
                         )
@@ -915,7 +915,7 @@ private fun RemoteHeader(
                     ) {
                         Icon(
                             Icons.Default.MoreVert,
-                            contentDescription = "Menu de Opções",
+                            contentDescription = stringResource(R.string.cd_options_menu),
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
@@ -929,7 +929,7 @@ private fun RemoteHeader(
                             .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)), RoundedCornerShape(12.dp))
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Apelidar TV", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
+                            text = { Text(stringResource(R.string.menu_nickname), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
                             leadingIcon = {
                                 Icon(Icons.Default.EditNote, contentDescription = null, tint = Color(0xFF38BDF8))
                             },
@@ -939,7 +939,7 @@ private fun RemoteHeader(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Detalhes da TV", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
+                            text = { Text(stringResource(R.string.menu_details), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
                             leadingIcon = {
                                 Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF38BDF8))
                             },
@@ -949,7 +949,7 @@ private fun RemoteHeader(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Reconectar TV", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
+                            text = { Text(stringResource(R.string.menu_reconnect), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
                             leadingIcon = {
                                 Icon(Icons.Default.Refresh, contentDescription = null, tint = Color(0xFF22C55E))
                             },
@@ -981,7 +981,7 @@ private fun RemoteHeader(
                                     IconButton(onClick = { showMenu = false; onForgetTv(tv) }) {
                                         Icon(
                                             Icons.Default.Delete,
-                                            contentDescription = "Esquecer ${displayName(tv)}",
+                                            contentDescription = stringResource(R.string.cd_forget_tv, displayName(tv)),
                                             tint = Color(0xFF94A3B8)
                                         )
                                     }
@@ -993,7 +993,7 @@ private fun RemoteHeader(
                             )
                         }
                         DropdownMenuItem(
-                            text = { Text("Configurações", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
+                            text = { Text(stringResource(R.string.settings_title), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
                             leadingIcon = {
                                 Icon(Icons.Default.Settings, contentDescription = null, tint = Color(0xFF38BDF8))
                             },
@@ -1041,21 +1041,20 @@ private fun ConnectionStatusBanner(
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text(
-                        "Certificado da TV mudou",
+                        stringResource(R.string.cert_changed_title),
                         color = Color(0xFFEF4444),
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        "Isso acontece após atualizar o firmware da TV. Se foi você, pareie novamente; " +
-                            "caso contrário, outro dispositivo pode estar se passando pela TV.",
+                        stringResource(R.string.cert_changed_message),
                         color = Color(0xFFFECACA),
                         fontSize = 11.sp
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     TextButton(onClick = { haptics.performClick(); onRepair() }) {
-                        Text("Parear novamente", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(stringResource(R.string.cert_repair), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
             }
@@ -1077,14 +1076,14 @@ private fun ConnectionStatusBanner(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Permissão Requerida na TV",
+                            stringResource(R.string.permission_title),
                             color = Color(0xFFF59E0B),
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            "Por favor, aceite a solicitação de controle que apareceu na tela da sua TV Samsung.",
+                            stringResource(R.string.permission_message),
                             color = Color(0xFFFDE68A),
                             fontSize = 11.sp
                         )
@@ -1129,7 +1128,7 @@ private fun ConnectionSheet(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "Conectar TV",
+                    stringResource(R.string.connect_title),
                     color = RemoteTokens.TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
@@ -1137,7 +1136,7 @@ private fun ConnectionSheet(
                 TextButton(onClick = { haptics.performClick(); onSearch() }) {
                     Icon(Icons.Default.Refresh, null, tint = RemoteTokens.Accent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Buscar de novo", color = RemoteTokens.Accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.search_again), color = RemoteTokens.Accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
             Spacer(Modifier.height(14.dp))
@@ -1151,10 +1150,10 @@ private fun ConnectionSheet(
                         .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Nenhuma TV encontrada", color = RemoteTokens.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.no_tv_found), color = RemoteTokens.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Verifique se a TV está ligada na mesma rede Wi-Fi.",
+                        stringResource(R.string.no_tv_found_hint),
                         color = RemoteTokens.TextSecondary,
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center
@@ -1179,7 +1178,7 @@ private fun ConnectionSheet(
                 ) {
                     Icon(Icons.Default.EditNote, null, tint = RemoteTokens.Accent, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Digitar IP da TV manualmente", color = RemoteTokens.Accent, fontSize = 13.sp)
+                    Text(stringResource(R.string.enter_ip_manually), color = RemoteTokens.Accent, fontSize = 13.sp)
                 }
             } else {
                 Row(
@@ -1190,7 +1189,7 @@ private fun ConnectionSheet(
                     OutlinedTextField(
                         value = manualIpText,
                         onValueChange = { manualIpText = it },
-                        placeholder = { Text("Ex: 192.168.1.100", fontSize = 12.sp, color = RemoteTokens.TextDisabled) },
+                        placeholder = { Text(stringResource(R.string.ip_placeholder), fontSize = 12.sp, color = RemoteTokens.TextDisabled) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
@@ -1213,7 +1212,7 @@ private fun ConnectionSheet(
                         modifier = Modifier.height(54.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp)
                     ) {
-                        Text("Conectar", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF06121F))
+                        Text(stringResource(R.string.cd_connect), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF06121F))
                     }
                 }
             }
@@ -1280,10 +1279,10 @@ private fun ConnectionTvRow(
             isConnecting -> Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = RemoteTokens.Accent)
                 Spacer(Modifier.width(6.dp))
-                Text("Conectando", color = RemoteTokens.Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.connecting_short), color = RemoteTokens.Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
             isFailed -> Text("Falhou · Tentar", color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            else -> Icon(Icons.Default.KeyboardArrowRight, "Conectar", tint = RemoteTokens.Accent, modifier = Modifier.size(22.dp))
+            else -> Icon(Icons.Default.KeyboardArrowRight, stringResource(R.string.cd_connect), tint = RemoteTokens.Accent, modifier = Modifier.size(22.dp))
         }
     }
 }
@@ -1361,7 +1360,7 @@ private fun RemoteBody(
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                val tabs = listOf("Controle", "Números", "Mídia & Apps")
+                val tabs = listOf(stringResource(R.string.tab_control), stringResource(R.string.tab_numbers), stringResource(R.string.tab_media_apps))
                 tabs.forEachIndexed { index, title ->
                     val isSelected = selectedTab == index
                     Box(
@@ -1400,7 +1399,7 @@ private fun RemoteBody(
                     ) {
                         RemoteButton(
                             icon = Icons.Default.PowerSettingsNew,
-                            contentDescription = "Ligar ou desligar TV",
+                            contentDescription = stringResource(R.string.cd_power),
                             color = RemoteTokens.Power,
                             onClick = { triggerAction(onPower) },
                             size = 56.dp
@@ -1416,7 +1415,7 @@ private fun RemoteBody(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    RemoteSection(title = "Navegação", horizontalAlignment = Alignment.CenterHorizontally) {
+                    RemoteSection(title = stringResource(R.string.section_navigation), horizontalAlignment = Alignment.CenterHorizontally) {
                         DPad(
                             enabled = isConnected,
                             onUp = { triggerAction { onSendKey("KEY_UP") } },
@@ -1444,8 +1443,8 @@ private fun RemoteBody(
                             label = "VOL",
                             enabled = isConnected,
                             modifier = Modifier.weight(1f),
-                            plusContentDescription = "Aumentar volume",
-                            minusContentDescription = "Diminuir volume",
+                            plusContentDescription = stringResource(R.string.cd_volume_up),
+                            minusContentDescription = stringResource(R.string.cd_volume_down),
                             onPlus = { triggerAction { onSendKey("KEY_VOLUP") } },
                             onMinus = { triggerAction { onSendKey("KEY_VOLDOWN") } }
                         )
@@ -1458,7 +1457,7 @@ private fun RemoteBody(
                         ) { active ->
                             Icon(
                                 if (active) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                                contentDescription = if (active) "Som mutado" else "Som ligado",
+                                contentDescription = if (active) stringResource(R.string.cd_muted) else stringResource(R.string.cd_unmuted),
                                 tint = if (active) Color(0xFFF59E0B) else getEnabledColor(isConnected)
                             )
                         }
@@ -1468,8 +1467,8 @@ private fun RemoteBody(
                             label = "CH",
                             enabled = isConnected,
                             modifier = Modifier.weight(1f),
-                            plusContentDescription = "Próximo canal",
-                            minusContentDescription = "Canal anterior",
+                            plusContentDescription = stringResource(R.string.cd_channel_up),
+                            minusContentDescription = stringResource(R.string.cd_channel_down),
                             onPlus = { triggerAction { onSendKey("KEY_CHUP") } },
                             onMinus = { triggerAction { onSendKey("KEY_CHDOWN") } }
                         )
@@ -1477,7 +1476,7 @@ private fun RemoteBody(
                 }
                 1 -> {
                     // TAB 1: Keypad 0-9 & Guide / Source / HDMI / Utility Keys
-                    RemoteSection(title = "Teclado Numérico", horizontalAlignment = Alignment.CenterHorizontally) {
+                    RemoteSection(title = stringResource(R.string.section_keypad), horizontalAlignment = Alignment.CenterHorizontally) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             val keypadRows = listOf(
                                 listOf("1" to "KEY_1", "2" to "KEY_2", "3" to "KEY_3"),
@@ -1506,7 +1505,7 @@ private fun RemoteBody(
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    RemoteSection(title = "Entradas / HDMI") {
+                    RemoteSection(title = stringResource(R.string.section_inputs)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             RemoteSmallButton("HDMI 1", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_HDMI1") } }
                             RemoteSmallButton("HDMI 2", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_HDMI2") } }
@@ -1517,7 +1516,7 @@ private fun RemoteBody(
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    RemoteSection(title = "Funções Avançadas da TV") {
+                    RemoteSection(title = stringResource(R.string.section_advanced)) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 RemoteSmallButton("GUIDE", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_GUIDE") } }
@@ -1526,8 +1525,8 @@ private fun RemoteBody(
                                 RemoteSmallButton("MENU", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_MENU_HOME") } }
                             }
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                RemoteSmallButton("LEGENDA", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_SUBTITLE") } }
-                                RemoteSmallButton("TELA 16:9", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_PICTURE_SIZE") } }
+                                RemoteSmallButton(stringResource(R.string.key_subtitles), enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_SUBTITLE") } }
+                                RemoteSmallButton(stringResource(R.string.key_picture_size), enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_PICTURE_SIZE") } }
                                 RemoteSmallButton("TOOLS", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_TOOLS") } }
                             }
                         }
@@ -1535,7 +1534,7 @@ private fun RemoteBody(
                 }
                 2 -> {
                     // TAB 2: Media Controls & Expanded Apps
-                    RemoteSection(title = "Controle de Mídia") {
+                    RemoteSection(title = stringResource(R.string.section_media)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             IconButton(
                                 onClick = { triggerAction { onSendKey("KEY_PREV") } },
@@ -1546,7 +1545,7 @@ private fun RemoteBody(
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
                             ) {
-                                Icon(Icons.Default.SkipPrevious, contentDescription = "Anterior", tint = getEnabledColor(isConnected))
+                                Icon(Icons.Default.SkipPrevious, contentDescription = stringResource(R.string.cd_previous), tint = getEnabledColor(isConnected))
                             }
                             IconButton(
                                 onClick = { triggerAction { onSendKey("KEY_REWIND") } },
@@ -1557,7 +1556,7 @@ private fun RemoteBody(
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
                             ) {
-                                Icon(Icons.Default.FastRewind, contentDescription = "Retroceder", tint = getEnabledColor(isConnected))
+                                Icon(Icons.Default.FastRewind, contentDescription = stringResource(R.string.cd_rewind), tint = getEnabledColor(isConnected))
                             }
                             IconButton(
                                 onClick = { triggerAction { onSendKey("KEY_PLAY_PAUSE") } },
@@ -1570,7 +1569,7 @@ private fun RemoteBody(
                             ) {
                                 Icon(
                                     Icons.Default.PlayArrow,
-                                    contentDescription = "Reproduzir ou pausar",
+                                    contentDescription = stringResource(R.string.cd_play_pause),
                                     tint = if (isConnected) Color.White else RemoteTokens.TextDisabled,
                                     modifier = Modifier.size(24.dp)
                                 )
@@ -1584,7 +1583,7 @@ private fun RemoteBody(
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
                             ) {
-                                Icon(Icons.Default.FastForward, contentDescription = "Avançar", tint = getEnabledColor(isConnected))
+                                Icon(Icons.Default.FastForward, contentDescription = stringResource(R.string.cd_fast_forward), tint = getEnabledColor(isConnected))
                             }
                             IconButton(
                                 onClick = { triggerAction { onSendKey("KEY_NEXT") } },
@@ -1595,7 +1594,7 @@ private fun RemoteBody(
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
                             ) {
-                                Icon(Icons.Default.SkipNext, contentDescription = "Próximo", tint = getEnabledColor(isConnected))
+                                Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.cd_next), tint = getEnabledColor(isConnected))
                             }
                             IconButton(
                                 onClick = { triggerAction { onSendKey("KEY_STOP") } },
@@ -1606,14 +1605,14 @@ private fun RemoteBody(
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
                             ) {
-                                Icon(Icons.Default.Stop, contentDescription = "Parar", tint = getEnabledColor(isConnected))
+                                Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.cd_stop), tint = getEnabledColor(isConnected))
                             }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    RemoteSection(title = "Aplicativos Expandidos") {
+                    RemoteSection(title = stringResource(R.string.section_featured_apps)) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                 AppLaunchButton("Netflix", Color(0xFFE50914), isConnected, modifier = Modifier.weight(1f)) {
@@ -1648,11 +1647,11 @@ private fun RemoteBody(
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    RemoteSection(title = "Todos os aplicativos") {
+                    RemoteSection(title = stringResource(R.string.section_all_apps)) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (installedApps.isEmpty()) {
                                 Text(
-                                    if (isConnected) "Nenhum aplicativo carregado ainda." else "Conecte-se à TV para listar os aplicativos.",
+                                    if (isConnected) stringResource(R.string.apps_empty) else stringResource(R.string.apps_connect_first),
                                     color = Color(0xFF94A3B8),
                                     fontSize = 12.sp
                                 )
@@ -1668,7 +1667,7 @@ private fun RemoteBody(
                                 }
                             }
                             RemoteSmallButton(
-                                if (installedApps.isEmpty()) "CARREGAR APLICATIVOS" else "ATUALIZAR LISTA",
+                                if (installedApps.isEmpty()) stringResource(R.string.apps_load) else stringResource(R.string.apps_refresh),
                                 enabled = isConnected,
                                 modifier = Modifier.fillMaxWidth()
                             ) { onRefreshApps() }
@@ -1677,8 +1676,8 @@ private fun RemoteBody(
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    RemoteSection(title = "Teclado") {
-                        RemoteSmallButton("DIGITAR NA TV", enabled = isConnected, modifier = Modifier.fillMaxWidth()) {
+                    RemoteSection(title = stringResource(R.string.section_keyboard)) {
+                        RemoteSmallButton(stringResource(R.string.keyboard_open), enabled = isConnected, modifier = Modifier.fillMaxWidth()) {
                             onShowKeyboard()
                         }
                     }
@@ -1721,10 +1720,10 @@ private fun DPad(
             ),
         contentAlignment = Alignment.Center
     ) {
-        RemoteIconButton(Icons.Default.ArrowDropUp, "Navegar para cima", Modifier.align(Alignment.TopCenter).padding(top = 4.dp), enabled = enabled, onRepeat = onUp, onClick = onUp)
-        RemoteIconButton(Icons.Default.ArrowDropDown, "Navegar para baixo", Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp), enabled = enabled, onRepeat = onDown, onClick = onDown)
-        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowLeft, "Navegar para esquerda", Modifier.align(Alignment.CenterStart).padding(start = 4.dp), enabled = enabled, onRepeat = onLeft, onClick = onLeft)
-        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowRight, "Navegar para direita", Modifier.align(Alignment.CenterEnd).padding(end = 4.dp), enabled = enabled, onRepeat = onRight, onClick = onRight)
+        RemoteIconButton(Icons.Default.ArrowDropUp, stringResource(R.string.cd_nav_up), Modifier.align(Alignment.TopCenter).padding(top = 4.dp), enabled = enabled, onRepeat = onUp, onClick = onUp)
+        RemoteIconButton(Icons.Default.ArrowDropDown, stringResource(R.string.cd_nav_down), Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp), enabled = enabled, onRepeat = onDown, onClick = onDown)
+        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowLeft, stringResource(R.string.cd_nav_left), Modifier.align(Alignment.CenterStart).padding(start = 4.dp), enabled = enabled, onRepeat = onLeft, onClick = onLeft)
+        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowRight, stringResource(R.string.cd_nav_right), Modifier.align(Alignment.CenterEnd).padding(end = 4.dp), enabled = enabled, onRepeat = onRight, onClick = onRight)
         Box(
             modifier = Modifier
                 .size(76.dp)
