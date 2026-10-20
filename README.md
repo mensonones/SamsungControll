@@ -15,10 +15,11 @@ O projeto busca ser um controle simples, direto e privado para uso na rede local
 
 ## Funcionalidades
 
-- **Três páginas com abas na parte de baixo** (ao alcance do polegar), no sistema visual "Graphite & Signal" (ver [design.md](design.md)):
+- **Quatro páginas com abas na parte de baixo** (ao alcance do polegar), no sistema visual "Graphite & Signal" (ver [design.md](design.md)):
   - **Controle**: D-Pad de quatro setores com OK no centro, `BACK`/`HOME`/`EXIT`, balancins de volume e canal e `MUTE`. Direções, volume e canal repetem enquanto pressionados.
-  - **Números**: teclado 0-9 (`Pre-Ch`, `123`), entradas (`HDMI 1-3`, `TV`), funções (`GUIDE`, `INFO`, `SOURCE`, `MENU`, `LEGENDA`, `TELA 16:9`, `TOOLS`) e o botão **Digitar na TV**.
-  - **Apps**: grade com os apps instalados na TV (ou os 8 atalhos padrão enquanto a lista não chega), fixe favoritos com toque longo, e barra de reprodução fixa (anterior, retroceder, play/pause, avançar, próximo, parar).
+  - **Toque**: touchpad de gestos como o do Google TV: deslize para navegar, toque para OK, toque duplo para Início e toque longo para Voltar.
+  - **Números**: teclado 0-9 (`Pre-Ch`, `123`), entradas (`HDMI 1-3`, `TV`), funções avançadas recolhidas em "Mais teclas" (`GUIDE`, `INFO`, `SOURCE`, `MENU`, `LEGENDA`, `TELA 16:9`, `TOOLS`) e o botão **Digitar na TV**.
+  - **Apps**: grade com os apps instalados na TV (ou os 8 atalhos padrão enquanto a lista não chega), toque longo abre ações (fixar no topo, "Ligar a TV e abrir", atalho na tela inicial), e barra de reprodução fixa (anterior, retroceder, play/pause, avançar, próximo, parar).
 - **Cabeçalho de uma linha**: nome e estado da TV (toque para trocar de TV, apelidar, ver detalhes, reconectar ou abrir configurações), busca e power.
 - **Teclado e Lista de Apps**:
   - Botão **Digitar na TV** (e abertura automática quando a TV foca um campo de texto) envia texto via `SendInputString`.
@@ -38,18 +39,19 @@ O projeto busca ser um controle simples, direto e privado para uso na rede local
   - Envio de magic packets para acordar a TV desligada antes de reconectar.
   - Reconexão direta ao voltar do segundo plano (`ON_RESUME`), caindo para Wake-on-LAN apenas se a conexão direta falhar.
   - Reconexão automática quando a rede volta a ficar disponível (troca/retorno de Wi-Fi) via `ConnectivityManager`.
-- **Conexão em Segundo Plano (Foreground Service)**:
-  - `TvConnectionService` mantém o processo vivo enquanto conectado, evitando que o WebSocket seja congelado/derrubado com o app em segundo plano (`pingInterval` de 10s no WebSocket).
-  - Notificação persistente com ação **Desconectar** que encerra a conexão sem abrir o app.
+- **Segundo plano (opcional, desligado por padrão)**:
+  - Em Configurações, "Manter conectado em segundo plano" inicia o `TvConnectionService` (notificação com ação **Desconectar**) e uma sessão de mídia remota: os botões de volume do celular controlam a TV mesmo com a tela apagada. A permissão de notificação só é pedida ao ligar essa opção.
 - **Volume pelos Botões Físicos**:
-  - Enquanto conectado, os botões de volume do celular controlam a TV (`KEY_VOLUP`/`KEY_VOLDOWN`); desconectado, o volume do próprio aparelho volta ao normal.
+  - Com o app aberto e conectado, os botões de volume do celular controlam a TV (`KEY_VOLUP`/`KEY_VOLDOWN`); desconectado, o volume do próprio aparelho volta ao normal.
 - **Quick Settings Tile**:
   - Tile "TV Power" para ligar/desligar a TV direto das Configurações Rápidas, sem abrir o app (KEY_POWER quando alcançável, Wake-on-LAN quando desligada).
   - Reflete o estado real da TV (ligada/standby) sondando o endpoint REST local, usando `PowerState` quando a firmware o expõe.
+- **Fora do app**:
+  - **Widget** na tela inicial com power, mudo e volume.
+  - **Atalhos** no ícone do app (power e mudo) e **atalhos fixos** criados por toque longo: "Ligar a TV e abrir <app>" ou "Ligar a TV e trocar para HDMI N" (liga por Wake-on-LAN, espera a TV acordar e executa).
 - **UI Premium & Haptics**:
   - Feedback tátil (vibração hática) configurável via `HapticsManager`.
-  - Animações sutis de compressão com mola física (`pressScale`).
-  - Emissor LED virtual com brilho dinâmico ao transmitir comandos.
+  - Animação curta de compressão ao pressionar (`pressScale`), sem quique.
 
 ## Capturas de Tela
 
@@ -74,14 +76,15 @@ Principais classes e abstrações:
 - `SamsungControlApplication`: ponto de inicialização da Application e container do Koin.
 - `di/AppModule`: módulo Koin para injeção desacoplada de dependências.
 - `MainActivity`: host do Compose, injeção do `RemoteViewModel` e roteamento dos botões físicos de volume para a TV.
-- `RemoteControlScreen`: tela principal com abas segmentadas e diálogo de detalhes da TV.
+- `RemoteControlScreen`, `RemoteHeader`, `RemotePages`: tela principal, cabeçalho com o menu da TV e as quatro páginas.
 - `RemoteViewModel`: estado de UI, descoberta, conexão, apelidos e ações do controle.
 - `TvConnectionException`: hierarquia selada de exceções (`NetworkUnreachable`, `PermissionDenied`, `DeviceNotFound`, `CertificateMismatch`).
 - `SamsungDeviceInfoResolver`: leitor REST da API local `/api/v2/` para extração de modelo, OS e firmware.
 - `HapticsManager`: interface desacoplada para feedback tátil (`AndroidHapticsManager` e `NoOpHapticsManager`).
-- `PressAnimation`: modificador reutilizável `Modifier.pressScale` baseado em molas físicas do Compose.
+- `PressAnimation`: modificador reutilizável `Modifier.pressScale` (tween curto, sem quique).
 - `TvController` & `SamsungTvController`: contrato e implementação do controle remoto WebSocket.
-- `TvConnectionService`: foreground service que mantém o processo vivo em segundo plano enquanto a conexão está ativa.
+- `TvConnectionService`: foreground service opcional que mantém a conexão e encaminha o volume com a tela apagada.
+- `QuickTvActions`, `QuickActionActivity`, `QuickActionReceiver`, `RemoteWidgetProvider`, `ShortcutPinner`: ações sem UI (widget, atalhos, cenas) com conexão curta à TV.
 - `TvPowerTileService`: Quick Settings Tile que liga/desliga a TV e reflete seu estado atual.
 - `DiscoveryService` & `TvDiscovery`: contrato e implementação de descoberta SSDP/UPnP.
 - `WakeOnLanSender`: envio de magic packets UDP.

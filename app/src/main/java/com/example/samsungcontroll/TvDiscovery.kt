@@ -123,7 +123,7 @@ class TvDiscovery(
     }
 }
 
-private fun MutableMap<String, DiscoveredTv>.mergeTv(tv: DiscoveredTv) {
+internal fun MutableMap<String, DiscoveredTv>.mergeTv(tv: DiscoveredTv) {
     val key = tv.identity ?: tv.ip
     val sameIpKey = entries.firstOrNull { it.value.ip == tv.ip }?.key
     val current = this[key]
@@ -160,7 +160,7 @@ private fun String.extractModelName(): String? {
     return null
 }
 
-private fun String.extractSsdpIdentity(): String? {
+internal fun String.extractSsdpIdentity(): String? {
     lineSequence().forEach { line ->
         val separatorIndex = line.indexOf(':')
         if (separatorIndex <= 0) return@forEach

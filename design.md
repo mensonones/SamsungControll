@@ -31,11 +31,12 @@ no gradients or glows, nothing decorative.
 ## Structure
 - One-line header: status dot + TV name (opens the TV menu: switch, nickname, details,
   reconnect, settings), search, power.
-- Body: three pages (Control, Numbers, Apps) with a tab rail at the bottom, inside thumb reach.
+- Body: four pages (Control, Touch, Numbers, Apps) with a tab rail at the bottom, inside thumb reach.
 - Control: four-wedge D-Pad, BACK/HOME/EXIT, VOL / MUTE / CH rockers.
-- Numbers: keypad, inputs, advanced keys, "type on TV".
-- Apps: grid (installed apps from the TV, with featured fallback), long-press to pin,
-  sticky transport bar.
+- Touch: gesture pad (swipe = arrows, tap = OK, double-tap = Home, long-press = Back).
+- Numbers: keypad, inputs, advanced keys behind "More keys", "type on TV".
+- Apps: grid (installed apps from the TV, with featured fallback), long-press menu (pin,
+  wake-and-open scene, home-screen shortcut), sticky transport bar.
 
 ## Motion and interaction
 - Press feedback: 90 ms scale to 0.96 plus the accent fill. No spring, no bounce.

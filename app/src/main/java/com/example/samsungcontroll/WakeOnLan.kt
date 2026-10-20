@@ -68,7 +68,7 @@ private fun android.net.DhcpInfo.broadcastAddress(): String? {
     ).joinToString(".")
 }
 
-private fun String.subnetBroadcastAddress(): String? {
+internal fun String.subnetBroadcastAddress(): String? {
     val parts = split(".")
     if (parts.size != 4 || parts.any { it.toIntOrNull() !in 0..255 }) return null
 
