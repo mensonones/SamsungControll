@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.SamsungControll" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Dark from the first frame: no white flash before Compose draws the graphite background. -->
+    <style name="Theme.SamsungControll" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/remote_background</item>
+        <item name="android:colorBackground">@color/remote_background</item>
+        <item name="android:colorAccent">@color/remote_accent</item>
+    </style>
 </resources>

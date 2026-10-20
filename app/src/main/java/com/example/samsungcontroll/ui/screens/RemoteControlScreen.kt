@@ -196,23 +196,23 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
     tvToForget?.let { tv ->
         AlertDialog(
             onDismissRequest = { tvToForget = null },
-            containerColor = Color(0xFF111827),
-            title = { Text(stringResource(R.string.forget_tv_title), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+            containerColor = RemoteTokens.Surface1,
+            title = { Text(stringResource(R.string.forget_tv_title), color = RemoteTokens.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
             text = {
                 Text(
                     stringResource(R.string.forget_tv_message, viewModel.displayName(tv)),
-                    color = Color(0xFFCBD5E1),
+                    color = RemoteTokens.TextSecondary,
                     fontSize = 13.sp
                 )
             },
             confirmButton = {
                 TextButton(onClick = { viewModel.forgetTv(tv); tvToForget = null }) {
-                    Text(stringResource(R.string.action_forget), color = Color(0xFFEF4444), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(stringResource(R.string.action_forget), color = RemoteTokens.Power, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { tvToForget = null }) {
-                    Text(stringResource(R.string.action_cancel), color = Color(0xFF94A3B8), fontSize = 13.sp)
+                    Text(stringResource(R.string.action_cancel), color = RemoteTokens.TextSecondary, fontSize = 13.sp)
                 }
             }
         )
@@ -338,19 +338,19 @@ private fun TvDetailsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1E293B),
+        containerColor = RemoteTokens.Surface1,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Default.Tv,
                     contentDescription = null,
-                    tint = Color(0xFF38BDF8),
+                    tint = RemoteTokens.Accent,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = stringResource(R.string.tv_info_title),
-                    color = Color.White,
+                    color = RemoteTokens.TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
                 )
@@ -373,7 +373,7 @@ private fun TvDetailsDialog(
         confirmButton = {
             Button(
                 onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                colors = ButtonDefaults.buttonColors(containerColor = RemoteTokens.Accent, contentColor = RemoteTokens.AccentInk),
                 shape = CircleShape
             ) {
                 Text(stringResource(R.string.action_close), fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -394,8 +394,8 @@ private fun SettingsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF111827),
-        title = { Text(stringResource(R.string.settings_title), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+        containerColor = RemoteTokens.Surface1,
+        title = { Text(stringResource(R.string.settings_title), color = RemoteTokens.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 SettingSwitchRow(stringResource(R.string.settings_haptics), hapticsEnabled, onHapticsChange)
@@ -405,7 +405,7 @@ private fun SettingsDialog(
                     onVolumeKeysChange
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(stringResource(R.string.settings_idle_timeout), color = Color.White, fontSize = 13.sp)
+                    Text(stringResource(R.string.settings_idle_timeout), color = RemoteTokens.TextPrimary, fontSize = 13.sp)
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         AppSettings.IDLE_TIMEOUT_OPTIONS.forEach { minutes ->
                             FilterChip(
@@ -429,7 +429,7 @@ private fun SettingsDialog(
 @Composable
 private fun SettingSwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        Text(label, color = RemoteTokens.TextPrimary, fontSize = 13.sp, modifier = Modifier.weight(1f))
         Spacer(modifier = Modifier.width(12.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
@@ -448,14 +448,14 @@ private fun TvKeyboardDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF111827),
-        title = { Text(stringResource(R.string.keyboard_title), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+        containerColor = RemoteTokens.Surface1,
+        title = { Text(stringResource(R.string.keyboard_title), color = RemoteTokens.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
         text = {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
                 singleLine = true,
-                placeholder = { Text(stringResource(R.string.keyboard_placeholder), fontSize = 13.sp, color = Color(0xFF64748B)) },
+                placeholder = { Text(stringResource(R.string.keyboard_placeholder), fontSize = 13.sp, color = RemoteTokens.TextDisabled) },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = {
                     onSend(text)
@@ -472,10 +472,10 @@ private fun TvKeyboardDialog(
         },
         dismissButton = {
             TextButton(onClick = { onSend(text) }) {
-                Text(stringResource(R.string.keyboard_type_only), color = Color(0xFF94A3B8), fontSize = 13.sp)
+                Text(stringResource(R.string.keyboard_type_only), color = RemoteTokens.TextSecondary, fontSize = 13.sp)
             }
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_close), color = Color(0xFF94A3B8), fontSize = 13.sp)
+                Text(stringResource(R.string.action_close), color = RemoteTokens.TextSecondary, fontSize = 13.sp)
             }
         }
     )
@@ -484,9 +484,9 @@ private fun TvKeyboardDialog(
 @Composable
 private fun DetailRow(label: String, value: String) {
     Column {
-        Text(label, color = Color(0xFF94A3B8), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+        Text(label, color = RemoteTokens.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Spacer(modifier = Modifier.height(2.dp))
-        Text(value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(value, color = RemoteTokens.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -501,19 +501,19 @@ private fun NicknameDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1E293B),
+        containerColor = RemoteTokens.Surface1,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Default.EditNote,
                     contentDescription = null,
-                    tint = Color(0xFF38BDF8),
+                    tint = RemoteTokens.Accent,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = stringResource(R.string.nickname_title),
-                    color = Color.White,
+                    color = RemoteTokens.TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp
                 )
@@ -523,7 +523,7 @@ private fun NicknameDialog(
             Column {
                 Text(
                     text = stringResource(R.string.nickname_message),
-                    color = Color(0xFF94A3B8),
+                    color = RemoteTokens.TextSecondary,
                     fontSize = 12.sp
                 )
                 Spacer(modifier = Modifier.height(14.dp))
@@ -531,20 +531,20 @@ private fun NicknameDialog(
                 OutlinedTextField(
                     value = textValue,
                     onValueChange = { textValue = it },
-                    placeholder = { Text("Ex: TV da Sala", fontSize = 13.sp, color = Color(0xFF64748B)) },
+                    placeholder = { Text(stringResource(R.string.preset_living_room), fontSize = 13.sp, color = RemoteTokens.TextDisabled) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF38BDF8),
-                        unfocusedBorderColor = Color(0xFF334155),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedBorderColor = RemoteTokens.Accent,
+                        unfocusedBorderColor = RemoteTokens.Surface3,
+                        focusedTextColor = RemoteTokens.TextPrimary,
+                        unfocusedTextColor = RemoteTokens.TextPrimary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
-                Text(stringResource(R.string.nickname_suggestions), color = Color(0xFFCBD5E1), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.nickname_suggestions), color = RemoteTokens.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Row(
@@ -554,8 +554,8 @@ private fun NicknameDialog(
                     presets.take(2).forEach { preset ->
                         AssistChip(
                             onClick = { textValue = preset },
-                            label = { Text(preset, fontSize = 11.sp, color = Color.White) },
-                            colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFF334155))
+                            label = { Text(preset, fontSize = 12.sp, color = RemoteTokens.TextPrimary) },
+                            colors = AssistChipDefaults.assistChipColors(containerColor = RemoteTokens.Surface3)
                         )
                     }
                 }
@@ -567,8 +567,8 @@ private fun NicknameDialog(
                     presets.drop(2).forEach { preset ->
                         AssistChip(
                             onClick = { textValue = preset },
-                            label = { Text(preset, fontSize = 11.sp, color = Color.White) },
-                            colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFF334155))
+                            label = { Text(preset, fontSize = 12.sp, color = RemoteTokens.TextPrimary) },
+                            colors = AssistChipDefaults.assistChipColors(containerColor = RemoteTokens.Surface3)
                         )
                     }
                 }
@@ -577,7 +577,7 @@ private fun NicknameDialog(
         confirmButton = {
             Button(
                 onClick = { onSave(textValue) },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                colors = ButtonDefaults.buttonColors(containerColor = RemoteTokens.Accent, contentColor = RemoteTokens.AccentInk),
                 shape = CircleShape
             ) {
                 Text(stringResource(R.string.action_save), fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -585,7 +585,7 @@ private fun NicknameDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_cancel), color = Color(0xFF94A3B8), fontSize = 13.sp)
+                Text(stringResource(R.string.action_cancel), color = RemoteTokens.TextSecondary, fontSize = 13.sp)
             }
         }
     )
@@ -613,7 +613,7 @@ private fun BrandedSplash() {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "SAMSUNG",
-                    color = Color.White,
+                    color = RemoteTokens.TextPrimary,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 2.5.sp
@@ -621,7 +621,7 @@ private fun BrandedSplash() {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "CONTROL",
-                    color = Color(0xFF38BDF8),
+                    color = RemoteTokens.Accent,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 2.5.sp
@@ -651,7 +651,7 @@ private fun rememberReducedMotion(): Boolean {
  */
 @Composable
 internal fun SearchOrbitIndicator(buttonSize: Dp, modifier: Modifier = Modifier) {
-    val comet = Color(0xFF38BDF8)
+    val comet = RemoteTokens.Accent
     val transition = rememberInfiniteTransition(label = "search-orbit")
 
     if (rememberReducedMotion()) {
@@ -668,7 +668,7 @@ internal fun SearchOrbitIndicator(buttonSize: Dp, modifier: Modifier = Modifier)
             val orbitRadius = buttonSize.toPx() / 2f - 1.dp.toPx()
             val head = Offset(center.x, center.y - orbitRadius)
             drawCircle(comet.copy(alpha = 0.3f * alpha), 6.dp.toPx(), head)
-            drawCircle(Color.White.copy(alpha = alpha), 2.4.dp.toPx(), head)
+            drawCircle(RemoteTokens.TextPrimary.copy(alpha = alpha), 2.4.dp.toPx(), head)
         }
         return
     }
@@ -707,8 +707,8 @@ internal fun SearchOrbitIndicator(buttonSize: Dp, modifier: Modifier = Modifier)
         // Head: soft glow halo, then a bright white core.
         val head = pointAt(angle)
         drawCircle(color = comet.copy(alpha = 0.35f), radius = 6.dp.toPx(), center = head)
-        drawCircle(color = Color.White.copy(alpha = 0.9f), radius = 4.dp.toPx(), center = head)
-        drawCircle(color = Color.White, radius = 2.4.dp.toPx(), center = head)
+        drawCircle(color = RemoteTokens.TextPrimary.copy(alpha = 0.9f), radius = 4.dp.toPx(), center = head)
+        drawCircle(color = RemoteTokens.TextPrimary, radius = 2.4.dp.toPx(), center = head)
     }
 }
 
@@ -729,21 +729,21 @@ private fun ConnectionStatusBanner(
                     .fillMaxWidth()
                     .padding(top = 10.dp),
                 shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF3B0D0D)),
-                border = BorderStroke(1.dp, Color(0xFFEF4444))
+                colors = CardDefaults.cardColors(containerColor = RemoteTokens.Surface1),
+                border = BorderStroke(1.dp, RemoteTokens.Power)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text(
                         stringResource(R.string.cert_changed_title),
-                        color = Color(0xFFEF4444),
+                        color = RemoteTokens.Power,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         stringResource(R.string.cert_changed_message),
-                        color = Color(0xFFFECACA),
-                        fontSize = 11.sp
+                        color = RemoteTokens.TextPrimary,
+                        fontSize = 12.sp
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     TextButton(onClick = { haptics.performClick(); onRepair() }) {
@@ -758,8 +758,8 @@ private fun ConnectionStatusBanner(
                     .fillMaxWidth()
                     .padding(top = 10.dp),
                 shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF381E08)),
-                border = BorderStroke(1.dp, Color(0xFFF59E0B))
+                colors = CardDefaults.cardColors(containerColor = RemoteTokens.Surface1),
+                border = BorderStroke(1.dp, RemoteTokens.Warn)
             ) {
                 Row(
                     modifier = Modifier.padding(14.dp),
@@ -770,15 +770,15 @@ private fun ConnectionStatusBanner(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             stringResource(R.string.permission_title),
-                            color = Color(0xFFF59E0B),
+                            color = RemoteTokens.Warn,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             stringResource(R.string.permission_message),
-                            color = Color(0xFFFDE68A),
-                            fontSize = 11.sp
+                            color = RemoteTokens.TextPrimary,
+                            fontSize = 12.sp
                         )
                     }
                 }
@@ -807,7 +807,7 @@ private fun ConnectionSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(),
-        containerColor = Color(0xFF121A28)
+        containerColor = RemoteTokens.Surface1
     ) {
         Column(
             modifier = Modifier
@@ -901,11 +901,11 @@ private fun ConnectionSheet(
                             }
                         },
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = RemoteTokens.Accent),
+                        colors = ButtonDefaults.buttonColors(containerColor = RemoteTokens.Accent, contentColor = RemoteTokens.AccentInk),
                         modifier = Modifier.height(54.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp)
                     ) {
-                        Text(stringResource(R.string.cd_connect), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF06121F))
+                        Text(stringResource(R.string.cd_connect), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = RemoteTokens.AccentInk)
                     }
                 }
             }
@@ -932,9 +932,9 @@ private fun ConnectionTvRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (isConnected) Color(0xFF14301F) else RemoteTokens.Surface2)
+            .background(if (isConnected) RemoteTokens.AccentMuted else RemoteTokens.Surface2)
             .border(
-                BorderStroke(1.dp, if (isConnected) Color(0xFF22C55E) else RemoteTokens.Border),
+                BorderStroke(1.dp, if (isConnected) RemoteTokens.Accent else RemoteTokens.Border),
                 RoundedCornerShape(16.dp)
             )
             .clickable { haptics.performClick(); onSelect(tv) }
@@ -950,13 +950,13 @@ private fun ConnectionTvRow(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(if (isConnected) Color(0xFF22C55E).copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f)),
+                    .background(if (isConnected) RemoteTokens.Accent.copy(alpha = 0.18f) else RemoteTokens.Surface3),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Default.Tv,
                     null,
-                    tint = if (isConnected) Color(0xFF22C55E) else RemoteTokens.TextPrimary,
+                    tint = if (isConnected) RemoteTokens.Accent else RemoteTokens.TextPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -968,13 +968,13 @@ private fun ConnectionTvRow(
         }
 
         when {
-            isConnected -> Text(stringResource(R.string.connected_check), color = Color(0xFF22C55E), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            isConnected -> Text(stringResource(R.string.connected_check), color = RemoteTokens.Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             isConnecting -> Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = RemoteTokens.Accent)
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.connecting_short), color = RemoteTokens.Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
-            isFailed -> Text(stringResource(R.string.failed_retry), color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            isFailed -> Text(stringResource(R.string.failed_retry), color = RemoteTokens.Power, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             else -> Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(R.string.cd_connect), tint = RemoteTokens.Accent, modifier = Modifier.size(22.dp))
         }
     }

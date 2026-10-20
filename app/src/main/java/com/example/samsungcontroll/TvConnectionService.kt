@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 
 /**
  * Foreground service whose only job is to keep the app process alive (at foreground
@@ -75,6 +76,7 @@ class TvConnectionService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_tv)
+            .setColor(ContextCompat.getColor(this, R.color.remote_accent))
             .setContentTitle(getString(R.string.notification_connected_title))
             .setContentText(getString(R.string.notification_connected_text, label))
             .setContentIntent(contentIntent)

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirrors RemoteTokens (Graphite & Signal); used where Compose tokens are not available. -->
+    <color name="remote_background">#0C1014</color>
+    <color name="remote_accent">#B6E551</color>
+</resources>
