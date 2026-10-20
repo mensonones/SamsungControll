@@ -29,7 +29,6 @@ class TvDiscovery(
 ) : DiscoveryService {
     private val ssdpMulticastAddress = "239.255.255.250"
     private val ssdpPort = 1900
-    private val macAddressResolver = MacAddressResolver()
     
     private val searchTargets = listOf(
         "urn:samsung.com:device:RemoteControlReceiver:1",
@@ -84,9 +83,8 @@ class TvDiscovery(
                                         target.contains("samsung", ignoreCase = true)
 
                                 if (isSamsungDevice) {
-                                    val macAddress = macAddressResolver.resolve(ip)
                                     val modelName = response.extractModelName() ?: "Samsung Smart TV"
-                                    discovered.mergeTv(DiscoveredTv(modelName, ip, identity, macAddress))
+                                    discovered.mergeTv(DiscoveredTv(modelName, ip, identity))
                                 }
                             }
                         } catch (e: SocketTimeoutException) {

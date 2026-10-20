@@ -24,7 +24,6 @@ class RemoteViewModel(
     application: Application,
     private val tvPreferences: SecureTvPreferences = SecureTvPreferences(application),
     private val discoveryService: DiscoveryService = TvDiscovery(application),
-    private val macAddressResolver: MacAddressResolver = MacAddressResolver(),
     private val samsungDeviceInfoResolver: SamsungDeviceInfoResolver = SamsungDeviceInfoResolver(),
     private val wakeOnLanSender: WakeOnLanSender = WakeOnLanSender(application),
     private val appSettings: AppSettings = AppSettings(application)
@@ -548,7 +547,6 @@ class RemoteViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val info = samsungDeviceInfoResolver.fetchDeviceInfo(ip)
             val resolvedMac = info?.macAddress?.takeIf { it.isNotBlank() }
-                ?: macAddressResolver.resolve(ip)
 
             launch(Dispatchers.Main.immediate) {
                 tvDeviceInfo = info

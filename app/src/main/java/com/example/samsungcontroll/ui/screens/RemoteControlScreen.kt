@@ -167,26 +167,14 @@ fun RemoteControlScreen(viewModel: RemoteViewModel) {
     }
 
     CompositionLocalProvider(LocalHapticsManager provides hapticsManager) {
-        var showSplash by remember { mutableStateOf(true) }
-
-        LaunchedEffect(Unit) {
-            viewModel.initialize()
-            delay(SPLASH_DURATION_MS.milliseconds)
-            showSplash = false
-        }
-
-        if (showSplash) {
-            BrandedSplash()
-        } else {
-            RemoteControlContent(viewModel)
-        }
+        LaunchedEffect(Unit) { viewModel.initialize() }
+        RemoteControlContent(viewModel)
     }
 }
 
 @Composable
 private fun RemoteControlContent(viewModel: RemoteViewModel) {
     var showNicknameDialog by remember { mutableStateOf(false) }
-    var showDetailsDialog by remember { mutableStateOf(false) }
     var showKeyboardDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var tvToForget by remember { mutableStateOf<SavedTv?>(null) }
@@ -252,15 +240,6 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
         )
     }
 
-    if (showDetailsDialog) {
-        TvDetailsDialog(
-            deviceInfo = viewModel.tvDeviceInfo,
-            ipAddress = viewModel.ipAddress,
-            macAddress = viewModel.macAddress,
-            onDismiss = { showDetailsDialog = false }
-        )
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -289,7 +268,8 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
             onReconnect = { viewModel.reconnect() },
             onPower = { viewModel.togglePower() },
             onEditNickname = { showNicknameDialog = true },
-            onShowDetails = { showDetailsDialog = true },
+            deviceInfo = viewModel.tvDeviceInfo,
+            macAddress = viewModel.macAddress,
             onShowSettings = { showSettingsDialog = true },
             savedTvs = viewModel.savedTvs,
             displayName = viewModel::displayName,
@@ -330,59 +310,6 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
             modifier = Modifier.weight(1f)
         )
     }
-}
-
-@Composable
-private fun TvDetailsDialog(
-    deviceInfo: TvDeviceInfo?,
-    ipAddress: String,
-    macAddress: String,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = RemoteTokens.Surface1,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.Tv,
-                    contentDescription = null,
-                    tint = RemoteTokens.Accent,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = stringResource(R.string.tv_info_title),
-                    color = RemoteTokens.TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
-                )
-            }
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                DetailRow(stringResource(R.string.tv_info_model), deviceInfo?.modelName ?: "Samsung Smart TV")
-                DetailRow(stringResource(R.string.tv_info_os), deviceInfo?.os ?: "Tizen OS")
-                if (!deviceInfo?.firmwareVersion.isNullOrBlank()) {
-                    DetailRow(stringResource(R.string.tv_info_firmware), deviceInfo.firmwareVersion)
-                }
-                DetailRow(stringResource(R.string.tv_info_network), deviceInfo?.networkType ?: "Wi-Fi")
-                DetailRow(stringResource(R.string.tv_info_ip), ipAddress.ifBlank { stringResource(R.string.tv_info_unknown) })
-                if (macAddress.isNotBlank()) {
-                    DetailRow(stringResource(R.string.tv_info_mac), macAddress)
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = RemoteTokens.Accent, contentColor = RemoteTokens.AccentInk),
-                shape = CircleShape
-            ) {
-                Text(stringResource(R.string.action_close), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            }
-        }
-    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -508,22 +435,12 @@ private fun TvKeyboardDialog(
 }
 
 @Composable
-private fun DetailRow(label: String, value: String) {
-    Column {
-        Text(label, color = RemoteTokens.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(value, color = RemoteTokens.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
 private fun NicknameDialog(
     currentNickname: String,
     onDismiss: () -> Unit,
     onSave: (String) -> Unit
 ) {
     var textValue by remember { mutableStateOf(currentNickname) }
-    val presets = listOf(stringResource(R.string.preset_living_room), stringResource(R.string.preset_bedroom), stringResource(R.string.preset_balcony), stringResource(R.string.preset_kitchen))
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -557,7 +474,7 @@ private fun NicknameDialog(
                 OutlinedTextField(
                     value = textValue,
                     onValueChange = { textValue = it },
-                    placeholder = { Text(stringResource(R.string.preset_living_room), fontSize = 13.sp, color = RemoteTokens.TextDisabled) },
+                    placeholder = { Text(stringResource(R.string.nickname_placeholder), fontSize = 13.sp, color = RemoteTokens.TextDisabled) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -569,35 +486,6 @@ private fun NicknameDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
-                Text(stringResource(R.string.nickname_suggestions), color = RemoteTokens.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    presets.take(2).forEach { preset ->
-                        AssistChip(
-                            onClick = { textValue = preset },
-                            label = { Text(preset, fontSize = 12.sp, color = RemoteTokens.TextPrimary) },
-                            colors = AssistChipDefaults.assistChipColors(containerColor = RemoteTokens.Surface3)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    presets.drop(2).forEach { preset ->
-                        AssistChip(
-                            onClick = { textValue = preset },
-                            label = { Text(preset, fontSize = 12.sp, color = RemoteTokens.TextPrimary) },
-                            colors = AssistChipDefaults.assistChipColors(containerColor = RemoteTokens.Surface3)
-                        )
-                    }
-                }
             }
         },
         confirmButton = {
@@ -615,46 +503,6 @@ private fun NicknameDialog(
             }
         }
     )
-}
-
-@Composable
-private fun BrandedSplash() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(RemoteTokens.Background),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Image(
-                painter = painterResource(R.drawable.app_logo_mark),
-                contentDescription = stringResource(R.string.cd_logo_control),
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.size(96.dp)
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "SAMSUNG",
-                    color = RemoteTokens.TextPrimary,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.5.sp
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "CONTROL",
-                    color = RemoteTokens.Accent,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.5.sp
-                )
-            }
-        }
-    }
 }
 
 /** True when the system has animations turned off (accessibility / developer setting). */
@@ -737,8 +585,6 @@ internal fun SearchOrbitIndicator(buttonSize: Dp, modifier: Modifier = Modifier)
         drawCircle(color = RemoteTokens.TextPrimary, radius = 2.4.dp.toPx(), center = head)
     }
 }
-
-private const val SPLASH_DURATION_MS = 900L
 
 @Composable
 private fun ConnectionStatusBanner(

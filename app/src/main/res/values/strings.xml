@@ -114,4 +114,7 @@
     <string name="retry_short">RETRY</string>
     <string name="cd_refresh_apps">Refresh app list</string>
     <string name="cd_open_tv_menu">TV menu</string>
+    <string name="more_keys">More keys</string>
+    <string name="less_keys">Fewer keys</string>
+    <string name="nickname_placeholder">e.g. Living room</string>
 </resources>

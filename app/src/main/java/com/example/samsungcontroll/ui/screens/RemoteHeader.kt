@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -47,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import com.example.samsungcontroll.ConnectionState
 import com.example.samsungcontroll.R
 import com.example.samsungcontroll.SavedTv
+import com.example.samsungcontroll.TvDeviceInfo
 import com.example.samsungcontroll.ui.components.PowerKey
 import com.example.samsungcontroll.ui.haptics.LocalHapticsManager
 import com.example.samsungcontroll.ui.theme.RemoteTokens
@@ -67,7 +67,8 @@ fun RemoteHeader(
     onReconnect: () -> Unit,
     onPower: () -> Unit,
     onEditNickname: () -> Unit,
-    onShowDetails: () -> Unit,
+    deviceInfo: TvDeviceInfo?,
+    macAddress: String,
     onShowSettings: () -> Unit,
     savedTvs: List<SavedTv>,
     displayName: (SavedTv) -> String,
@@ -168,12 +169,18 @@ fun RemoteHeader(
                 }
                 if (savedTvs.isNotEmpty()) HorizontalDivider(color = RemoteTokens.Border)
                 menuItem(Icons.Default.EditNote, stringResource(R.string.menu_nickname)) { showMenu = false; onEditNickname() }
-                menuItem(Icons.Default.Info, stringResource(R.string.menu_details)) { showMenu = false; onShowDetails() }
                 menuItem(Icons.Default.Refresh, stringResource(R.string.menu_reconnect)) { showMenu = false; onReconnect() }
                 menuItem(Icons.Default.Settings, stringResource(R.string.settings_title)) { showMenu = false; onShowSettings() }
-                if (ipAddress.isNotBlank()) {
+                val details = listOfNotNull(
+                    deviceInfo?.modelName?.takeIf { it.isNotBlank() }?.let { stringResource(R.string.tv_info_model) to it },
+                    deviceInfo?.firmwareVersion?.takeIf { it.isNotBlank() }?.let { stringResource(R.string.tv_info_firmware) to it },
+                    ipAddress.takeIf { it.isNotBlank() }?.let { stringResource(R.string.tv_info_ip) to it },
+                    macAddress.takeIf { it.isNotBlank() }?.let { stringResource(R.string.tv_info_mac) to it }
+                )
+                if (details.isNotEmpty()) HorizontalDivider(color = RemoteTokens.Border)
+                details.forEach { (label, value) ->
                     DropdownMenuItem(
-                        text = { Text("IP: $ipAddress", style = RemoteType.Caption, color = RemoteTokens.TextSecondary) },
+                        text = { Text("$label $value", style = RemoteType.Caption, color = RemoteTokens.TextSecondary) },
                         onClick = {},
                         enabled = false
                     )

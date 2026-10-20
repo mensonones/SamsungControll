@@ -111,4 +111,7 @@
     <string name="retry_short">TENTAR</string>
     <string name="cd_refresh_apps">Atualizar lista de apps</string>
     <string name="cd_open_tv_menu">Menu da TV</string>
+    <string name="more_keys">Mais teclas</string>
+    <string name="less_keys">Menos teclas</string>
+    <string name="nickname_placeholder">Ex: Sala</string>
 </resources>

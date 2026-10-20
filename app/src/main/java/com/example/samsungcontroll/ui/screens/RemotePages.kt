@@ -47,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -280,17 +281,25 @@ private fun KeypadPage(
         }
 
         Spacer(Modifier.height(RemoteTokens.Space3))
-        SectionLabel(stringResource(R.string.section_advanced))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(RemoteTokens.Space2)) {
-            RemoteKey("GUIDE", Modifier.weight(1f), isConnected) { onSendKey("KEY_GUIDE") }
-            RemoteKey("INFO", Modifier.weight(1f), isConnected) { onSendKey("KEY_INFO") }
-            RemoteKey("SOURCE", Modifier.weight(1f), isConnected) { onSendKey("KEY_SOURCE") }
-            RemoteKey("MENU", Modifier.weight(1f), isConnected) { onSendKey("KEY_MENU_HOME") }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(RemoteTokens.Space2)) {
-            RemoteKey(stringResource(R.string.key_subtitles), Modifier.weight(1f), isConnected) { onSendKey("KEY_SUBTITLE") }
-            RemoteKey(stringResource(R.string.key_picture_size), Modifier.weight(1f), isConnected) { onSendKey("KEY_PICTURE_SIZE") }
-            RemoteKey("TOOLS", Modifier.weight(1f), isConnected) { onSendKey("KEY_TOOLS") }
+        var showMore by rememberSaveable { mutableStateOf(false) }
+        RemoteKey(
+            label = stringResource(if (showMore) R.string.less_keys else R.string.more_keys),
+            modifier = Modifier.fillMaxWidth(),
+            enabled = true
+        ) { showMore = !showMore }
+        if (showMore) {
+            SectionLabel(stringResource(R.string.section_advanced))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(RemoteTokens.Space2)) {
+                RemoteKey("GUIDE", Modifier.weight(1f), isConnected) { onSendKey("KEY_GUIDE") }
+                RemoteKey("INFO", Modifier.weight(1f), isConnected) { onSendKey("KEY_INFO") }
+                RemoteKey("SOURCE", Modifier.weight(1f), isConnected) { onSendKey("KEY_SOURCE") }
+                RemoteKey("MENU", Modifier.weight(1f), isConnected) { onSendKey("KEY_MENU_HOME") }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(RemoteTokens.Space2)) {
+                RemoteKey(stringResource(R.string.key_subtitles), Modifier.weight(1f), isConnected) { onSendKey("KEY_SUBTITLE") }
+                RemoteKey(stringResource(R.string.key_picture_size), Modifier.weight(1f), isConnected) { onSendKey("KEY_PICTURE_SIZE") }
+                RemoteKey("TOOLS", Modifier.weight(1f), isConnected) { onSendKey("KEY_TOOLS") }
+            }
         }
         Spacer(Modifier.height(RemoteTokens.Space4))
     }
