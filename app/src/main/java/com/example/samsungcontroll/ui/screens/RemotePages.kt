@@ -46,6 +46,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import com.example.samsungcontroll.QuickAction
+import com.example.samsungcontroll.ShortcutPinner
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -100,6 +106,7 @@ fun RemoteBody(
     onToggleFavorite: (String) -> Unit,
     onRefreshApps: () -> Unit,
     onShowKeyboard: () -> Unit,
+    onRunScene: (QuickAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isConnected = state == ConnectionState.CONNECTED
@@ -109,10 +116,10 @@ fun RemoteBody(
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when (selectedTab) {
                 0 -> ControlPage(isConnected, isMuted, onToggleMute, onSendKey)
-                1 -> KeypadPage(isConnected, onSendKey, onShowKeyboard)
+                1 -> KeypadPage(isConnected, onSendKey, onShowKeyboard, onRunScene)
                 else -> AppsPage(
                     isConnected, installedApps, favoriteAppIds, onToggleFavorite,
-                    onLaunchApp, onRefreshApps, onSendKey
+                    onLaunchApp, onRefreshApps, onSendKey, onRunScene
                 )
             }
         }
@@ -237,8 +244,10 @@ private fun Rocker(
 private fun KeypadPage(
     isConnected: Boolean,
     onSendKey: (String) -> Unit,
-    onShowKeyboard: () -> Unit
+    onShowKeyboard: () -> Unit,
+    onRunScene: (QuickAction) -> Unit
 ) {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -274,9 +283,29 @@ private fun KeypadPage(
         Spacer(Modifier.height(RemoteTokens.Space3))
         SectionLabel(stringResource(R.string.section_inputs))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(RemoteTokens.Space2)) {
-            RemoteKey("HDMI 1", Modifier.weight(1f), isConnected) { onSendKey("KEY_HDMI1") }
-            RemoteKey("HDMI 2", Modifier.weight(1f), isConnected) { onSendKey("KEY_HDMI2") }
-            RemoteKey("HDMI 3", Modifier.weight(1f), isConnected) { onSendKey("KEY_HDMI3") }
+            listOf("HDMI 1" to "KEY_HDMI1", "HDMI 2" to "KEY_HDMI2", "HDMI 3" to "KEY_HDMI3").forEach { (label, key) ->
+                var menuOpen by remember { mutableStateOf(false) }
+                val shortcutLabel = stringResource(R.string.shortcut_label_input, label)
+                Box(Modifier.weight(1f)) {
+                    // Long-press works while disconnected too: the scene wakes the TV first.
+                    RemoteKey(
+                        label,
+                        Modifier.fillMaxWidth(),
+                        enabled = true,
+                        onLongClick = { menuOpen = true }
+                    ) { if (isConnected) onSendKey(key) }
+                    SceneMenu(
+                        expanded = menuOpen,
+                        onDismiss = { menuOpen = false },
+                        entries = listOf(
+                            stringResource(R.string.scene_wake_input) to { onRunScene(QuickAction.WakeAndKey(key)) },
+                            stringResource(R.string.scene_pin_shortcut) to {
+                                ShortcutPinner.pin(context, shortcutLabel, QuickAction.WakeAndKey(key))
+                            }
+                        )
+                    )
+                }
+            }
             RemoteKey("TV", Modifier.weight(1f), isConnected) { onSendKey("KEY_TV") }
         }
 
@@ -319,8 +348,10 @@ private fun AppsPage(
     onToggleFavorite: (String) -> Unit,
     onLaunchApp: (String) -> Unit,
     onRefreshApps: () -> Unit,
-    onSendKey: (String) -> Unit
+    onSendKey: (String) -> Unit,
+    onRunScene: (QuickAction) -> Unit
 ) {
+    val context = LocalContext.current
     val apps = (installedApps.ifEmpty { FeaturedApps })
         .sortedByDescending { it.appId in favoriteAppIds }
 
@@ -352,12 +383,17 @@ private fun AppsPage(
             verticalArrangement = Arrangement.spacedBy(RemoteTokens.Space2)
         ) {
             items(apps, key = { it.appId }) { app ->
+                val shortcutLabel = stringResource(R.string.shortcut_label_open, app.name)
                 AppTile(
                     app = app,
                     pinned = app.appId in favoriteAppIds,
                     enabled = isConnected,
                     onClick = { onLaunchApp(app.appId) },
-                    onLongClick = { onToggleFavorite(app.appId) }
+                    onTogglePin = { onToggleFavorite(app.appId) },
+                    onWakeAndOpen = { onRunScene(QuickAction.WakeAndApp(app.appId)) },
+                    onAddShortcut = {
+                        ShortcutPinner.pin(context, shortcutLabel, QuickAction.WakeAndApp(app.appId))
+                    }
                 )
             }
         }
@@ -373,42 +409,75 @@ private fun AppTile(
     pinned: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onTogglePin: () -> Unit,
+    onWakeAndOpen: () -> Unit,
+    onAddShortcut: () -> Unit
 ) {
     val haptics = LocalHapticsManager.current
-    val pinLabel = if (pinned) stringResource(R.string.app_unpin) else stringResource(R.string.app_pin)
+    var menuOpen by remember { mutableStateOf(false) }
+    val moreLabel = stringResource(R.string.more_actions)
 
-    Column(
-        modifier = Modifier
-            .heightIn(min = 96.dp)
-            .clip(RoundedCornerShape(RemoteTokens.RadiusKey))
-            .background(if (pinned) RemoteTokens.AccentMuted else RemoteTokens.Surface2)
-            .border(
-                1.dp,
-                if (pinned) RemoteTokens.Accent else RemoteTokens.Border,
-                RoundedCornerShape(RemoteTokens.RadiusKey)
+    Box {
+        Column(
+            modifier = Modifier
+                .heightIn(min = 96.dp)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(RemoteTokens.RadiusKey))
+                .background(if (pinned) RemoteTokens.AccentMuted else RemoteTokens.Surface2)
+                .border(
+                    1.dp,
+                    if (pinned) RemoteTokens.Accent else RemoteTokens.Border,
+                    RoundedCornerShape(RemoteTokens.RadiusKey)
+                )
+                .semantics { onLongClick(moreLabel) { menuOpen = true; true } }
+                // The tile stays long-pressable while disconnected: scenes can wake the TV first.
+                .combinedClickable(
+                    onClick = { if (enabled) { haptics.performKeypress(); onClick() } },
+                    onLongClick = { haptics.performToggle(); menuOpen = true }
+                )
+                .padding(RemoteTokens.Space3),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = app.name.firstOrNull()?.uppercase() ?: "?",
+                style = RemoteType.Digit,
+                color = if (enabled) (if (pinned) RemoteTokens.Accent else RemoteTokens.TextPrimary) else RemoteTokens.TextDisabled
             )
-            .semantics { onLongClick(pinLabel) { onLongClick(); true } }
-            .combinedClickable(
-                enabled = enabled,
-                onClick = { haptics.performKeypress(); onClick() },
-                onLongClick = { haptics.performToggle(); onLongClick() }
+            Text(
+                text = app.name,
+                style = RemoteType.Caption,
+                color = if (enabled) RemoteTokens.TextPrimary else RemoteTokens.TextDisabled,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
-            .padding(RemoteTokens.Space3),
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = app.name.firstOrNull()?.uppercase() ?: "?",
-            style = RemoteType.Digit,
-            color = if (enabled) (if (pinned) RemoteTokens.Accent else RemoteTokens.TextPrimary) else RemoteTokens.TextDisabled
+        }
+
+        SceneMenu(
+            expanded = menuOpen,
+            onDismiss = { menuOpen = false },
+            entries = listOf(
+                (if (pinned) stringResource(R.string.app_unpin) else stringResource(R.string.app_pin)) to onTogglePin,
+                stringResource(R.string.scene_wake_open) to onWakeAndOpen,
+                stringResource(R.string.scene_pin_shortcut) to onAddShortcut
+            )
         )
-        Text(
-            text = app.name,
-            style = RemoteType.Caption,
-            color = if (enabled) RemoteTokens.TextPrimary else RemoteTokens.TextDisabled,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
+    }
+}
+
+/** Long-press menu shared by app tiles and input keys. */
+@Composable
+private fun SceneMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    entries: List<Pair<String, () -> Unit>>
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        entries.forEach { (label, action) ->
+            DropdownMenuItem(
+                text = { Text(label, style = RemoteType.Body, color = RemoteTokens.TextPrimary) },
+                onClick = { onDismiss(); action() }
+            )
+        }
     }
 }
 

@@ -108,7 +108,7 @@
     <string name="cd_ok">OK</string>
     <string name="app_pin">Pin to top</string>
     <string name="app_unpin">Unpin</string>
-    <string name="apps_pin_hint">Long-press an app to pin it to the top.</string>
+    <string name="apps_pin_hint">Long-press an app for more actions.</string>
     <string name="connected_check">Connected ✓</string>
     <string name="failed_retry">Failed · Retry</string>
     <string name="retry_short">RETRY</string>
@@ -124,4 +124,11 @@
     <string name="widget_description">TV power, mute and volume</string>
     <string name="shortcut_power">TV power</string>
     <string name="shortcut_mute">Mute TV</string>
+    <string name="more_actions">More actions</string>
+    <string name="scene_wake_open">Turn on TV and open</string>
+    <string name="scene_wake_input">Turn on TV and switch here</string>
+    <string name="scene_pin_shortcut">Add shortcut to home screen</string>
+    <string name="shortcut_label_open">Open %1$s</string>
+    <string name="shortcut_label_input">TV: %1$s</string>
+    <string name="shortcut_pin_unsupported">Your launcher does not support pinned shortcuts</string>
 </resources>

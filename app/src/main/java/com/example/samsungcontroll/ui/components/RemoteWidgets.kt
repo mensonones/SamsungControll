@@ -1,7 +1,10 @@
 package com.example.samsungcontroll.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -48,6 +51,7 @@ private fun keyContent(enabled: Boolean, pressed: Boolean): Color = when {
     else -> RemoteTokens.TextPrimary
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 /** Text key printed in the legend (monospace) face, like BACK / HOME / HDMI 1 on a physical remote. */
 @Composable
 fun RemoteKey(
@@ -56,6 +60,7 @@ fun RemoteKey(
     enabled: Boolean = true,
     textStyle: TextStyle = RemoteType.Legend,
     minHeight: Dp = RemoteTokens.MinTouch,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     val haptics = LocalHapticsManager.current
@@ -72,10 +77,22 @@ fun RemoteKey(
                 BorderStroke(1.dp, if (enabled) RemoteTokens.Border else Color.Transparent),
                 RoundedCornerShape(RemoteTokens.RadiusKey)
             )
-            .repeatingClickable(interaction, enabled) {
-                haptics.performKeypress()
-                onClick()
-            },
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        interactionSource = interaction,
+                        indication = LocalIndication.current,
+                        enabled = enabled,
+                        onClick = { haptics.performKeypress(); onClick() },
+                        onLongClick = { haptics.performToggle(); onLongClick() }
+                    )
+                } else {
+                    Modifier.repeatingClickable(interaction, enabled) {
+                        haptics.performKeypress()
+                        onClick()
+                    }
+                }
+            ),
         contentAlignment = Alignment.Center
     ) {
         Text(

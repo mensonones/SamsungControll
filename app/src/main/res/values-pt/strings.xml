@@ -105,7 +105,7 @@
     <string name="cd_ok">OK</string>
     <string name="app_pin">Fixar no topo</string>
     <string name="app_unpin">Desafixar</string>
-    <string name="apps_pin_hint">Mantenha pressionado um app para fixá-lo no topo.</string>
+    <string name="apps_pin_hint">Mantenha pressionado um app para mais ações.</string>
     <string name="connected_check">Conectado ✓</string>
     <string name="failed_retry">Falhou · Tentar</string>
     <string name="retry_short">TENTAR</string>
@@ -121,4 +121,11 @@
     <string name="widget_description">Power, mudo e volume da TV</string>
     <string name="shortcut_power">Ligar/desligar TV</string>
     <string name="shortcut_mute">Mutar TV</string>
+    <string name="more_actions">Mais ações</string>
+    <string name="scene_wake_open">Ligar a TV e abrir</string>
+    <string name="scene_wake_input">Ligar a TV e trocar para esta entrada</string>
+    <string name="scene_pin_shortcut">Adicionar atalho à tela inicial</string>
+    <string name="shortcut_label_open">Abrir %1$s</string>
+    <string name="shortcut_label_input">TV: %1$s</string>
+    <string name="shortcut_pin_unsupported">Seu launcher não suporta atalhos fixos</string>
 </resources>

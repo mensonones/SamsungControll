@@ -307,6 +307,7 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
             onToggleFavorite = viewModel::toggleFavoriteApp,
             onRefreshApps = { viewModel.refreshInstalledApps() },
             onShowKeyboard = { showKeyboardDialog = true },
+            onRunScene = viewModel::runScene,
             modifier = Modifier.weight(1f)
         )
     }

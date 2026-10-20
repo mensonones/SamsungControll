@@ -356,6 +356,14 @@ class RemoteViewModel(
                 saveResolvedMacAddress(cleanIp, savedIdentity)
                 startConnectionService()
                 controller?.requestInstalledApps()
+                pendingScene?.let { scene ->
+                    pendingScene = null
+                    // A TV that just woke needs a moment before it accepts keys and launches.
+                    viewModelScope.launch {
+                        delay(SCENE_SETTLE_MS)
+                        perform(scene)
+                    }
+                }
                 startIdleWatch()
             } else {
                 stopConnectionService()
@@ -529,6 +537,27 @@ class RemoteViewModel(
         controller?.sendKey(key)
     }
 
+    /** "Wake the TV, then do X": runs at once when connected, otherwise after the TV is back. */
+    fun runScene(action: QuickAction) {
+        if (connectionState == ConnectionState.CONNECTED) {
+            perform(action)
+            return
+        }
+        pendingScene = action
+        if (normalizeMacAddress(macAddress) != null) wakeTv() else reconnect()
+    }
+
+    private var pendingScene: QuickAction? = null
+
+    private fun perform(action: QuickAction) {
+        when (action) {
+            QuickAction.Power -> togglePower()
+            is QuickAction.Key -> sendKey(action.key)
+            is QuickAction.WakeAndKey -> sendKey(action.key)
+            is QuickAction.WakeAndApp -> launchApp(action.appId)
+        }
+    }
+
     fun sendText(text: String) {
         lastInteractionAt = System.currentTimeMillis()
         controller?.sendText(text)
@@ -568,6 +597,7 @@ class RemoteViewModel(
     }
 
     fun disconnect() {
+        pendingScene = null
         idleJob?.cancel()
         idleJob = null
         connectionAttempt++
@@ -606,6 +636,7 @@ class RemoteViewModel(
         const val WAKE_RECONNECT_RETRY_DELAY_MS = 6_000L
         const val WAKE_RECONNECT_RETRIES = 5
         const val MIN_SEARCH_DURATION_MS = 1_200L
+        const val SCENE_SETTLE_MS = 1_500L
         const val IDLE_CHECK_INTERVAL_MS = 30_000L
     }
 }
