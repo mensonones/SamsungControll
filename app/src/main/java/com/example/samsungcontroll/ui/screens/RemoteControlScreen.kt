@@ -114,16 +114,8 @@ import com.example.samsungcontroll.DiscoveredTv
 import com.example.samsungcontroll.R
 import com.example.samsungcontroll.RemoteViewModel
 import com.example.samsungcontroll.SavedTv
-import com.example.samsungcontroll.TvApp
 import com.example.samsungcontroll.TvConnectionException
 import com.example.samsungcontroll.TvDeviceInfo
-import com.example.samsungcontroll.ui.animation.pressScale
-import com.example.samsungcontroll.ui.components.AppLaunchButton
-import com.example.samsungcontroll.ui.components.RemoteButton
-import com.example.samsungcontroll.ui.components.RemoteIconButton
-import com.example.samsungcontroll.ui.components.repeatingClickable
-import com.example.samsungcontroll.ui.components.RemoteSmallButton
-import com.example.samsungcontroll.ui.components.getEnabledColor
 import com.example.samsungcontroll.ui.theme.RemoteTokens
 import com.example.samsungcontroll.ui.haptics.LocalHapticsManager
 import androidx.compose.foundation.Canvas
@@ -266,83 +258,74 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
         )
     }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF101A33), Color(0xFF0B1020), Color(0xFF080A0F))
-                )
-            )
+            .background(RemoteTokens.Background)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            RemoteHeader(
+        RemoteHeader(
+            connectionState = viewModel.connectionState,
+            isDiscoveryActive = viewModel.showDiscovery,
+            isSearching = viewModel.isSearching,
+            tvNickname = viewModel.tvNickname.ifBlank {
+                viewModel.tvDeviceInfo?.name?.takeIf { it != "Smart TV" }.orEmpty()
+            },
+            ipAddress = viewModel.ipAddress,
+            onToggleDiscovery = {
+                // Tapping the magnifier starts a scan (results are revealed only when
+                // it finishes); tapping again while results are shown hides them.
+                if (viewModel.showDiscovery) {
+                    viewModel.toggleDiscovery()
+                } else {
+                    viewModel.searchTvs()
+                }
+            },
+            onReconnect = { viewModel.reconnect() },
+            onPower = { viewModel.togglePower() },
+            onEditNickname = { showNicknameDialog = true },
+            onShowDetails = { showDetailsDialog = true },
+            onShowSettings = { showSettingsDialog = true },
+            savedTvs = viewModel.savedTvs,
+            displayName = viewModel::displayName,
+            isCurrentTv = viewModel::isCurrentTv,
+            onSwitchTv = viewModel::switchToTv,
+            onForgetTv = { tvToForget = it }
+        )
+
+        ConnectionStatusBanner(
+            connectionState = viewModel.connectionState,
+            certificateChanged = viewModel.connectionError is TvConnectionException.CertificateMismatch,
+            onRepair = { viewModel.forgetPairingAndReconnect() }
+        )
+
+        if (viewModel.showDiscovery) {
+            ConnectionSheet(
+                discoveredTvs = viewModel.discoveredTvs,
+                currentConnectedIp = viewModel.ipAddress,
                 connectionState = viewModel.connectionState,
-                isDiscoveryActive = viewModel.showDiscovery,
-                isSearching = viewModel.isSearching,
-                tvNickname = viewModel.tvNickname,
-                ipAddress = viewModel.ipAddress,
-                onToggleDiscovery = {
-                    // Tapping the magnifier starts a scan (results are revealed only when
-                    // it finishes); tapping again while results are shown hides them.
-                    if (viewModel.showDiscovery) {
-                        viewModel.toggleDiscovery()
-                    } else {
-                        viewModel.searchTvs()
-                    }
-                },
-                onReconnect = { viewModel.reconnect() },
-                onEditNickname = { showNicknameDialog = true },
-                onShowDetails = { showDetailsDialog = true },
-                onShowSettings = { showSettingsDialog = true },
-                savedTvs = viewModel.savedTvs,
-                displayName = viewModel::displayName,
-                isCurrentTv = viewModel::isCurrentTv,
-                onSwitchTv = viewModel::switchToTv,
-                onForgetTv = { tvToForget = it }
-            )
-
-            ConnectionStatusBanner(
-                connectionState = viewModel.connectionState,
-                certificateChanged = viewModel.connectionError is TvConnectionException.CertificateMismatch,
-                onRepair = { viewModel.forgetPairingAndReconnect() }
-            )
-
-            if (viewModel.showDiscovery) {
-                ConnectionSheet(
-                    discoveredTvs = viewModel.discoveredTvs,
-                    currentConnectedIp = viewModel.ipAddress,
-                    connectionState = viewModel.connectionState,
-                    onSearch = { viewModel.searchTvs() },
-                    onSelect = { tv -> viewModel.connectToTv(tv) },
-                    onConnectManualIp = { manualIp -> viewModel.connectToTv(manualIp) },
-                    onDismiss = { viewModel.toggleDiscovery() }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            RemoteBody(
-                state = viewModel.connectionState,
-                isMuted = viewModel.isMuted,
-                onPower = { viewModel.togglePower() },
-                onToggleMute = { viewModel.toggleMute() },
-                onSendKey = { viewModel.sendKey(it) },
-                onLaunchApp = { viewModel.launchApp(it) },
-                installedApps = viewModel.installedApps,
-                onRefreshApps = { viewModel.refreshInstalledApps() },
-                onShowKeyboard = { showKeyboardDialog = true }
+                onSearch = { viewModel.searchTvs() },
+                onSelect = { tv -> viewModel.connectToTv(tv) },
+                onConnectManualIp = { manualIp -> viewModel.connectToTv(manualIp) },
+                onDismiss = { viewModel.toggleDiscovery() }
             )
         }
+
+        RemoteBody(
+            state = viewModel.connectionState,
+            isMuted = viewModel.isMuted,
+            onToggleMute = { viewModel.toggleMute() },
+            onSendKey = { viewModel.sendKey(it) },
+            onLaunchApp = { viewModel.launchApp(it) },
+            installedApps = viewModel.installedApps,
+            favoriteAppIds = viewModel.favoriteAppIds,
+            onToggleFavorite = viewModel::toggleFavoriteApp,
+            onRefreshApps = { viewModel.refreshInstalledApps() },
+            onShowKeyboard = { showKeyboardDialog = true },
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -613,11 +596,7 @@ private fun BrandedSplash() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF101A33), Color(0xFF07101F), Color(0xFF03060D))
-                )
-            ),
+            .background(RemoteTokens.Background),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -671,7 +650,7 @@ private fun rememberReducedMotion(): Boolean {
  * Collapses to an in-place opacity pulse when the system disables animations.
  */
 @Composable
-private fun SearchOrbitIndicator(buttonSize: Dp, modifier: Modifier = Modifier) {
+internal fun SearchOrbitIndicator(buttonSize: Dp, modifier: Modifier = Modifier) {
     val comet = Color(0xFF38BDF8)
     val transition = rememberInfiniteTransition(label = "search-orbit")
 
@@ -730,293 +709,6 @@ private fun SearchOrbitIndicator(buttonSize: Dp, modifier: Modifier = Modifier) 
         drawCircle(color = comet.copy(alpha = 0.35f), radius = 6.dp.toPx(), center = head)
         drawCircle(color = Color.White.copy(alpha = 0.9f), radius = 4.dp.toPx(), center = head)
         drawCircle(color = Color.White, radius = 2.4.dp.toPx(), center = head)
-    }
-}
-
-@Composable
-private fun RemoteHeader(
-    connectionState: ConnectionState,
-    isDiscoveryActive: Boolean,
-    isSearching: Boolean,
-    tvNickname: String,
-    ipAddress: String,
-    onToggleDiscovery: () -> Unit,
-    onReconnect: () -> Unit,
-    onEditNickname: () -> Unit,
-    onShowDetails: () -> Unit,
-    onShowSettings: () -> Unit,
-    savedTvs: List<SavedTv>,
-    displayName: (SavedTv) -> String,
-    isCurrentTv: (SavedTv) -> Boolean,
-    onSwitchTv: (SavedTv) -> Unit,
-    onForgetTv: (SavedTv) -> Unit
-) {
-    val haptics = LocalHapticsManager.current
-    var showMenu by remember { mutableStateOf(false) }
-
-    val (statusText, statusColor) = when (connectionState) {
-        ConnectionState.DISCONNECTED -> stringResource(R.string.status_disconnected) to Color(0xFF94A3B8)
-        ConnectionState.CONNECTING -> stringResource(R.string.status_connecting) to Color(0xFF38BDF8)
-        ConnectionState.WAITING_FOR_PERMISSION -> stringResource(R.string.status_permission) to Color(0xFFF59E0B)
-        ConnectionState.CONNECTED -> stringResource(R.string.status_connected) to Color(0xFF22C55E)
-        ConnectionState.FAILED -> stringResource(R.string.status_failed) to Color(0xFFEF4444)
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(26.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xEE111827)),
-        border = BorderStroke(
-            1.dp,
-            Brush.horizontalGradient(
-                listOf(
-                    Color(0xFF38BDF8).copy(alpha = 0.35f),
-                    Color.White.copy(alpha = 0.08f)
-                )
-            )
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(
-                                    Color(0xFF38BDF8).copy(alpha = 0.20f),
-                                    Color(0xFF0284C7).copy(alpha = 0.08f)
-                                )
-                            )
-                        )
-                        .border(
-                            BorderStroke(
-                                1.dp,
-                                Color(0xFF38BDF8).copy(alpha = 0.40f)
-                            ),
-                            RoundedCornerShape(14.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.app_logo_mark),
-                        contentDescription = stringResource(R.string.cd_logo),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column {
-                    val titleText = if (tvNickname.isNotBlank()) tvNickname else "Samsung Control"
-                    Text(
-                        text = titleText,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        maxLines = 1
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    val isFailed = connectionState == ConnectionState.FAILED
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = if (isFailed) {
-                            Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { haptics.performClick(); onReconnect() }
-                                .padding(vertical = 2.dp)
-                        } else Modifier
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(7.dp)
-                                .clip(CircleShape)
-                                .background(statusColor)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = statusText,
-                            color = statusColor,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        if (isFailed) {
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Icon(
-                                Icons.Default.Refresh,
-                                contentDescription = stringResource(R.string.cd_retry_connect),
-                                tint = statusColor,
-                                modifier = Modifier.size(13.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier.size(42.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    IconButton(
-                        onClick = {
-                            // Locked while a scan is in flight: ignore taps but keep the
-                            // icon visually active (the orbiting dot signals "busy").
-                            if (isSearching) return@IconButton
-                            haptics.performClick()
-                            onToggleDiscovery()
-                        },
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (isDiscoveryActive) Color(0xFF0284C7).copy(alpha = 0.4f)
-                                else Color.White.copy(alpha = 0.08f)
-                            )
-                            .border(
-                                BorderStroke(
-                                    1.dp,
-                                    if (isDiscoveryActive) Color(0xFF38BDF8) else Color.Transparent
-                                ),
-                                CircleShape
-                            )
-                    ) {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = stringResource(R.string.cd_search_tv),
-                            tint = if (isDiscoveryActive || isSearching) Color(0xFF38BDF8) else Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    if (isSearching) {
-                        SearchOrbitIndicator(buttonSize = 42.dp)
-                    }
-                }
-
-                Box {
-                    IconButton(
-                        onClick = {
-                            haptics.performClick()
-                            showMenu = true
-                        },
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.08f))
-                    ) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = stringResource(R.string.cd_options_menu),
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                        modifier = Modifier
-                            .background(Color(0xFF1E293B))
-                            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)), RoundedCornerShape(12.dp))
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.menu_nickname), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
-                            leadingIcon = {
-                                Icon(Icons.Default.EditNote, contentDescription = null, tint = Color(0xFF38BDF8))
-                            },
-                            onClick = {
-                                showMenu = false
-                                onEditNickname()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.menu_details), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
-                            leadingIcon = {
-                                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF38BDF8))
-                            },
-                            onClick = {
-                                showMenu = false
-                                onShowDetails()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.menu_reconnect), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
-                            leadingIcon = {
-                                Icon(Icons.Default.Refresh, contentDescription = null, tint = Color(0xFF22C55E))
-                            },
-                            onClick = {
-                                showMenu = false
-                                onReconnect()
-                            }
-                        )
-                        savedTvs.forEach { tv ->
-                            val current = isCurrentTv(tv)
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        displayName(tv),
-                                        color = if (current) Color(0xFF22C55E) else Color.White,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.Tv,
-                                        contentDescription = null,
-                                        tint = if (current) Color(0xFF22C55E) else Color(0xFF94A3B8)
-                                    )
-                                },
-                                trailingIcon = {
-                                    IconButton(onClick = { showMenu = false; onForgetTv(tv) }) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = stringResource(R.string.cd_forget_tv, displayName(tv)),
-                                            tint = Color(0xFF94A3B8)
-                                        )
-                                    }
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    if (!current) onSwitchTv(tv)
-                                }
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.settings_title), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
-                            leadingIcon = {
-                                Icon(Icons.Default.Settings, contentDescription = null, tint = Color(0xFF38BDF8))
-                            },
-                            onClick = {
-                                showMenu = false
-                                onShowSettings()
-                            }
-                        )
-                        if (ipAddress.isNotBlank()) {
-                            DropdownMenuItem(
-                                text = { Text("IP: $ipAddress", color = Color(0xFF94A3B8), fontSize = 12.sp) },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Tv, contentDescription = null, tint = Color(0xFF94A3B8))
-                                },
-                                onClick = { showMenu = false },
-                                enabled = false
-                            )
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -1276,681 +968,15 @@ private fun ConnectionTvRow(
         }
 
         when {
-            isConnected -> Text("Conectado ✓", color = Color(0xFF22C55E), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            isConnected -> Text(stringResource(R.string.connected_check), color = Color(0xFF22C55E), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             isConnecting -> Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = RemoteTokens.Accent)
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.connecting_short), color = RemoteTokens.Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
-            isFailed -> Text("Falhou · Tentar", color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            isFailed -> Text(stringResource(R.string.failed_retry), color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             else -> Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(R.string.cd_connect), tint = RemoteTokens.Accent, modifier = Modifier.size(22.dp))
         }
     }
 }
 
-@Composable
-private fun RemoteBody(
-    state: ConnectionState,
-    isMuted: Boolean,
-    onPower: () -> Unit,
-    onToggleMute: () -> Unit,
-    onSendKey: (String) -> Unit,
-    onLaunchApp: (String) -> Unit,
-    installedApps: List<TvApp>,
-    onRefreshApps: () -> Unit,
-    onShowKeyboard: () -> Unit
-) {
-    val haptics = LocalHapticsManager.current
-    val isConnected = state == ConnectionState.CONNECTED
-    var isTransmitting by remember { mutableStateOf(false) }
-    var selectedTab by remember { mutableIntStateOf(0) }
-
-    fun triggerAction(action: () -> Unit) {
-        isTransmitting = true
-        action()
-    }
-
-    LaunchedEffect(isTransmitting) {
-        if (isTransmitting) {
-            delay(150)
-            isTransmitting = false
-        }
-    }
-
-    Card(
-        modifier = Modifier
-            .widthIn(max = 390.dp)
-            .fillMaxWidth(),
-        shape = RoundedCornerShape(44.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF111827)),
-        border = BorderStroke(
-            1.5.dp,
-            Brush.verticalGradient(
-                listOf(
-                    Color.White.copy(alpha = 0.22f),
-                    Color.White.copy(alpha = 0.04f)
-                )
-            )
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .background(Brush.verticalGradient(listOf(Color(0xFF182235), Color(0xFF0F172A), Color(0xFF090E18))))
-                .padding(22.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Signal LED Emitter Indicator
-            Box(
-                modifier = Modifier
-                    .size(9.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (isTransmitting) Color(0xFF38BDF8) else Color(0xFF1E293B)
-                    )
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Tab Switcher Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF0F172A))
-                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)), RoundedCornerShape(20.dp))
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                val tabs = listOf(stringResource(R.string.tab_control), stringResource(R.string.tab_numbers), stringResource(R.string.tab_media_apps))
-                tabs.forEachIndexed { index, title ->
-                    val isSelected = selectedTab == index
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(38.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(
-                                if (isSelected) Color(0xFF0284C7) else Color.Transparent
-                            )
-                            .clickable {
-                                haptics.performClick()
-                                selectedTab = index
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = title,
-                            color = if (isSelected) Color.White else Color(0xFF94A3B8),
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            when (selectedTab) {
-                0 -> {
-                    // TAB 0: Main Remote Controls
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RemoteButton(
-                            icon = Icons.Default.PowerSettingsNew,
-                            contentDescription = stringResource(R.string.cd_power),
-                            color = RemoteTokens.Power,
-                            onClick = { triggerAction(onPower) },
-                            size = 56.dp
-                        )
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("SMART TV", color = RemoteTokens.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp, letterSpacing = 1.sp)
-                            Text("Remote Control", color = RemoteTokens.TextSecondary, fontSize = 11.sp)
-                        }
-                        RemoteSmallButton("123", enabled = isConnected) {
-                            triggerAction { onSendKey("KEY_123") }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    RemoteSection(title = stringResource(R.string.section_navigation), horizontalAlignment = Alignment.CenterHorizontally) {
-                        DPad(
-                            enabled = isConnected,
-                            onUp = { triggerAction { onSendKey("KEY_UP") } },
-                            onDown = { triggerAction { onSendKey("KEY_DOWN") } },
-                            onLeft = { triggerAction { onSendKey("KEY_LEFT") } },
-                            onRight = { triggerAction { onSendKey("KEY_RIGHT") } },
-                            onOk = { triggerAction { onSendKey("KEY_ENTER") } }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        RemoteSmallButton("BACK", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_RETURN") } }
-                        RemoteSmallButton("HOME", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_HOME") } }
-                        RemoteSmallButton("EXIT", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_EXIT") } }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        RemoteVerticalControl(
-                            plusIcon = Icons.Default.Add,
-                            minusIcon = Icons.Default.Remove,
-                            label = "VOL",
-                            enabled = isConnected,
-                            modifier = Modifier.weight(1f),
-                            plusContentDescription = stringResource(R.string.cd_volume_up),
-                            minusContentDescription = stringResource(R.string.cd_volume_down),
-                            onPlus = { triggerAction { onSendKey("KEY_VOLUP") } },
-                            onMinus = { triggerAction { onSendKey("KEY_VOLDOWN") } }
-                        )
-                        RemoteActionCard(
-                            label = "MUTE",
-                            enabled = isConnected,
-                            isActive = isMuted,
-                            modifier = Modifier.weight(0.9f),
-                            onClick = { triggerAction(onToggleMute) }
-                        ) { active ->
-                            Icon(
-                                if (active) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                                contentDescription = if (active) stringResource(R.string.cd_muted) else stringResource(R.string.cd_unmuted),
-                                tint = if (active) Color(0xFFF59E0B) else getEnabledColor(isConnected)
-                            )
-                        }
-                        RemoteVerticalControl(
-                            plusIcon = Icons.Default.KeyboardArrowUp,
-                            minusIcon = Icons.Default.KeyboardArrowDown,
-                            label = "CH",
-                            enabled = isConnected,
-                            modifier = Modifier.weight(1f),
-                            plusContentDescription = stringResource(R.string.cd_channel_up),
-                            minusContentDescription = stringResource(R.string.cd_channel_down),
-                            onPlus = { triggerAction { onSendKey("KEY_CHUP") } },
-                            onMinus = { triggerAction { onSendKey("KEY_CHDOWN") } }
-                        )
-                    }
-                }
-                1 -> {
-                    // TAB 1: Keypad 0-9 & Guide / Source / HDMI / Utility Keys
-                    RemoteSection(title = stringResource(R.string.section_keypad), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            val keypadRows = listOf(
-                                listOf("1" to "KEY_1", "2" to "KEY_2", "3" to "KEY_3"),
-                                listOf("4" to "KEY_4", "5" to "KEY_5", "6" to "KEY_6"),
-                                listOf("7" to "KEY_7", "8" to "KEY_8", "9" to "KEY_9"),
-                                listOf("Pre-Ch" to "KEY_PRECH", "0" to "KEY_0", "123" to "KEY_123")
-                            )
-
-                            keypadRows.forEach { row ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    row.forEach { (label, key) ->
-                                        RemoteRoundTextButton(
-                                            label = label,
-                                            enabled = isConnected,
-                                            onClick = { triggerAction { onSendKey(key) } },
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    RemoteSection(title = stringResource(R.string.section_inputs)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            RemoteSmallButton("HDMI 1", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_HDMI1") } }
-                            RemoteSmallButton("HDMI 2", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_HDMI2") } }
-                            RemoteSmallButton("HDMI 3", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_HDMI3") } }
-                            RemoteSmallButton("TV", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_TV") } }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    RemoteSection(title = stringResource(R.string.section_advanced)) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                RemoteSmallButton("GUIDE", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_GUIDE") } }
-                                RemoteSmallButton("INFO", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_INFO") } }
-                                RemoteSmallButton("SOURCE", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_SOURCE") } }
-                                RemoteSmallButton("MENU", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_MENU_HOME") } }
-                            }
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                RemoteSmallButton(stringResource(R.string.key_subtitles), enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_SUBTITLE") } }
-                                RemoteSmallButton(stringResource(R.string.key_picture_size), enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_PICTURE_SIZE") } }
-                                RemoteSmallButton("TOOLS", enabled = isConnected, modifier = Modifier.weight(1f)) { triggerAction { onSendKey("KEY_TOOLS") } }
-                            }
-                        }
-                    }
-                }
-                2 -> {
-                    // TAB 2: Media Controls & Expanded Apps
-                    RemoteSection(title = stringResource(R.string.section_media)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            IconButton(
-                                onClick = { triggerAction { onSendKey("KEY_PREV") } },
-                                enabled = isConnected,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
-                            ) {
-                                Icon(Icons.Default.SkipPrevious, contentDescription = stringResource(R.string.cd_previous), tint = getEnabledColor(isConnected))
-                            }
-                            IconButton(
-                                onClick = { triggerAction { onSendKey("KEY_REWIND") } },
-                                enabled = isConnected,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
-                            ) {
-                                Icon(Icons.Default.FastRewind, contentDescription = stringResource(R.string.cd_rewind), tint = getEnabledColor(isConnected))
-                            }
-                            IconButton(
-                                onClick = { triggerAction { onSendKey("KEY_PLAY_PAUSE") } },
-                                enabled = isConnected,
-                                modifier = Modifier
-                                    .weight(1.2f)
-                                    .height(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isConnected) RemoteTokens.Accent else RemoteTokens.SurfaceDisabled)
-                            ) {
-                                Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = stringResource(R.string.cd_play_pause),
-                                    tint = if (isConnected) Color.White else RemoteTokens.TextDisabled,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            IconButton(
-                                onClick = { triggerAction { onSendKey("KEY_FF") } },
-                                enabled = isConnected,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
-                            ) {
-                                Icon(Icons.Default.FastForward, contentDescription = stringResource(R.string.cd_fast_forward), tint = getEnabledColor(isConnected))
-                            }
-                            IconButton(
-                                onClick = { triggerAction { onSendKey("KEY_NEXT") } },
-                                enabled = isConnected,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
-                            ) {
-                                Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.cd_next), tint = getEnabledColor(isConnected))
-                            }
-                            IconButton(
-                                onClick = { triggerAction { onSendKey("KEY_STOP") } },
-                                enabled = isConnected,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isConnected) RemoteTokens.Surface2 else RemoteTokens.SurfaceDisabled)
-                            ) {
-                                Icon(Icons.Default.Stop, contentDescription = stringResource(R.string.cd_stop), tint = getEnabledColor(isConnected))
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    RemoteSection(title = stringResource(R.string.section_featured_apps)) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                AppLaunchButton("Netflix", Color(0xFFE50914), isConnected, modifier = Modifier.weight(1f)) {
-                                    triggerAction { onLaunchApp("3201907018807") }
-                                }
-                                AppLaunchButton("YouTube", Color.White, isConnected, textColor = Color.Black, modifier = Modifier.weight(1f)) {
-                                    triggerAction { onLaunchApp("111299001912") }
-                                }
-                                AppLaunchButton("Prime", Color(0xFF00A8E1), isConnected, modifier = Modifier.weight(1f)) {
-                                    triggerAction { onLaunchApp("3201910019365") }
-                                }
-                                AppLaunchButton("Disney+", Color(0xFF113CCF), isConnected, modifier = Modifier.weight(1f)) {
-                                    triggerAction { onLaunchApp("3201907018784") }
-                                }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                AppLaunchButton("Max", Color(0xFF002BE7), isConnected, modifier = Modifier.weight(1f)) {
-                                    triggerAction { onLaunchApp("3202103023447") }
-                                }
-                                AppLaunchButton("Spotify", Color(0xFF1DB954), isConnected, modifier = Modifier.weight(1f)) {
-                                    triggerAction { onLaunchApp("3201606009684") }
-                                }
-                                AppLaunchButton("Globo", Color(0xFFFF0000), isConnected, modifier = Modifier.weight(1f)) {
-                                    triggerAction { onLaunchApp("3201601007250") }
-                                }
-                                AppLaunchButton("AppleTV", Color(0xFF333333), isConnected, modifier = Modifier.weight(1f)) {
-                                    triggerAction { onLaunchApp("3201807016597") }
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    RemoteSection(title = stringResource(R.string.section_all_apps)) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (installedApps.isEmpty()) {
-                                Text(
-                                    if (isConnected) stringResource(R.string.apps_empty) else stringResource(R.string.apps_connect_first),
-                                    color = Color(0xFF94A3B8),
-                                    fontSize = 12.sp
-                                )
-                            }
-                            installedApps.chunked(3).forEach { row ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                    row.forEach { app ->
-                                        AppLaunchButton(app.name, Color(0xFF38BDF8), isConnected, modifier = Modifier.weight(1f)) {
-                                            triggerAction { onLaunchApp(app.appId) }
-                                        }
-                                    }
-                                    repeat(3 - row.size) { Spacer(modifier = Modifier.weight(1f)) }
-                                }
-                            }
-                            RemoteSmallButton(
-                                if (installedApps.isEmpty()) stringResource(R.string.apps_load) else stringResource(R.string.apps_refresh),
-                                enabled = isConnected,
-                                modifier = Modifier.fillMaxWidth()
-                            ) { onRefreshApps() }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    RemoteSection(title = stringResource(R.string.section_keyboard)) {
-                        RemoteSmallButton(stringResource(R.string.keyboard_open), enabled = isConnected, modifier = Modifier.fillMaxWidth()) {
-                            onShowKeyboard()
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DPad(
-    enabled: Boolean,
-    onUp: () -> Unit,
-    onDown: () -> Unit,
-    onLeft: () -> Unit,
-    onRight: () -> Unit,
-    onOk: () -> Unit
-) {
-    val haptics = LocalHapticsManager.current
-    val okInter = remember { MutableInteractionSource() }
-    val okPressed by okInter.collectIsPressedAsState()
-
-    Box(
-        modifier = Modifier
-            .size(210.dp)
-            .clip(CircleShape)
-            .background(
-                Brush.radialGradient(
-                    listOf(Color(0xFF263347), Color(0xFF161E2E), Color(0xFF0F172A))
-                )
-            )
-            .border(
-                BorderStroke(
-                    1.5.dp,
-                    Brush.linearGradient(
-                        listOf(Color(0xFF38BDF8).copy(alpha = 0.4f), Color.White.copy(alpha = 0.12f), Color(0xFF38BDF8).copy(alpha = 0.4f))
-                    )
-                ),
-                CircleShape
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        RemoteIconButton(Icons.Default.ArrowDropUp, stringResource(R.string.cd_nav_up), Modifier.align(Alignment.TopCenter).padding(top = 4.dp), enabled = enabled, onRepeat = onUp, onClick = onUp)
-        RemoteIconButton(Icons.Default.ArrowDropDown, stringResource(R.string.cd_nav_down), Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp), enabled = enabled, onRepeat = onDown, onClick = onDown)
-        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowLeft, stringResource(R.string.cd_nav_left), Modifier.align(Alignment.CenterStart).padding(start = 4.dp), enabled = enabled, onRepeat = onLeft, onClick = onLeft)
-        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowRight, stringResource(R.string.cd_nav_right), Modifier.align(Alignment.CenterEnd).padding(end = 4.dp), enabled = enabled, onRepeat = onRight, onClick = onRight)
-        Box(
-            modifier = Modifier
-                .size(76.dp)
-                .pressScale(isPressed = okPressed, pressedScale = 0.90f)
-                .clip(CircleShape)
-                .background(
-                    if (enabled) {
-                        if (okPressed) Brush.radialGradient(listOf(Color(0xFF0284C7), Color(0xFF0369A1)))
-                        else Brush.radialGradient(listOf(Color(0xFF334155), Color(0xFF1E293B)))
-                    } else Brush.radialGradient(listOf(Color(0xFF1E293B), Color(0xFF0F172A)))
-                )
-                .border(
-                    BorderStroke(
-                        1.dp,
-                        if (okPressed) Color(0xFF38BDF8) else Color.White.copy(alpha = 0.12f)
-                    ),
-                    CircleShape
-                )
-                .clickable(
-                    enabled = enabled,
-                    interactionSource = okInter,
-                    indication = ripple()
-                ) {
-                    haptics.performClick()
-                    onOk()
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                "OK",
-                color = getEnabledColor(enabled),
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                letterSpacing = 1.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun RemoteSection(
-    title: String,
-    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = horizontalAlignment) {
-        Text(
-            text = title,
-            color = RemoteTokens.TextPrimary,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        content()
-    }
-}
-
-@Composable
-private fun RemoteActionCard(
-    label: String,
-    enabled: Boolean,
-    isActive: Boolean,
-    modifier: Modifier,
-    onClick: () -> Unit,
-    icon: @Composable (Boolean) -> Unit
-) {
-    val haptics = LocalHapticsManager.current
-    val inter = remember { MutableInteractionSource() }
-    val isPressed by inter.collectIsPressedAsState()
-
-    Column(
-        modifier = modifier
-            .height(110.dp)
-            .pressScale(isPressed = isPressed, pressedScale = 0.95f)
-            .clip(RoundedCornerShape(20.dp))
-            .background(if (isActive) Color(0xFF1D283A) else Color(0xFF1F2937))
-            .border(
-                BorderStroke(1.dp, if (isActive) Color(0xFFF59E0B).copy(alpha = 0.4f) else Color.White.copy(alpha = 0.08f)),
-                RoundedCornerShape(20.dp)
-            )
-            .clickable(
-                enabled = enabled,
-                interactionSource = inter,
-                indication = ripple()
-            ) {
-                haptics.performToggle()
-                onClick()
-            }
-            .padding(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        icon(isActive)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(label, color = if (isActive) Color(0xFFF59E0B) else getEnabledColor(enabled), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun RemoteRoundTextButton(
-    label: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val haptics = LocalHapticsManager.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val keyShape = RoundedCornerShape(RemoteTokens.RadiusKey)
-    Box(
-        modifier = modifier
-            .height(52.dp)
-            .pressScale(isPressed = isPressed, pressedScale = 0.92f)
-            .clip(keyShape)
-            .background(
-                if (enabled) {
-                    if (isPressed) RemoteTokens.Surface3 else RemoteTokens.Surface2
-                } else RemoteTokens.SurfaceDisabled
-            )
-            .border(
-                BorderStroke(1.dp, if (enabled) RemoteTokens.Border else Color.Transparent),
-                keyShape
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = ripple(),
-                enabled = enabled
-            ) {
-                haptics.performKeypress()
-                onClick()
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(label, color = getEnabledColor(enabled), fontWeight = FontWeight.Bold, fontSize = 15.sp)
-    }
-}
-
-@Composable
-private fun RemoteVerticalControl(
-    plusIcon: ImageVector,
-    minusIcon: ImageVector,
-    label: String,
-    enabled: Boolean,
-    modifier: Modifier,
-    plusContentDescription: String,
-    minusContentDescription: String,
-    onPlus: () -> Unit,
-    onMinus: () -> Unit,
-    onPlusRepeat: () -> Unit = onPlus,
-    onMinusRepeat: () -> Unit = onMinus
-) {
-    val haptics = LocalHapticsManager.current
-
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(32.dp))
-            .background(
-                if (enabled) Brush.verticalGradient(listOf(Color(0xFF1F2937), Color(0xFF111827)))
-                else Brush.verticalGradient(listOf(Color(0xFF111827), Color(0xFF0B101D)))
-            )
-            .border(
-                BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
-                RoundedCornerShape(32.dp)
-            )
-            .padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        val plusInter = remember { MutableInteractionSource() }
-        val plusPressed by plusInter.collectIsPressedAsState()
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .pressScale(isPressed = plusPressed, pressedScale = 0.85f)
-                .clip(CircleShape)
-                .repeatingClickable(
-                    interactionSource = plusInter,
-                    enabled = enabled,
-                    onRepeat = onPlusRepeat,
-                    onClick = {
-                        haptics.performKeypress()
-                        onPlus()
-                    }
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(plusIcon, plusContentDescription, tint = if (plusPressed) Color(0xFF38BDF8) else getEnabledColor(enabled))
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.5f)
-                .height(1.dp)
-                .background(Color.White.copy(alpha = 0.08f))
-        )
-
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(label, color = Color(0xFF94A3B8), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-        Spacer(modifier = Modifier.height(2.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.5f)
-                .height(1.dp)
-                .background(Color.White.copy(alpha = 0.08f))
-        )
-
-        val minusInter = remember { MutableInteractionSource() }
-        val minusPressed by minusInter.collectIsPressedAsState()
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .pressScale(isPressed = minusPressed, pressedScale = 0.85f)
-                .clip(CircleShape)
-                .repeatingClickable(
-                    interactionSource = minusInter,
-                    enabled = enabled,
-                    onRepeat = onMinusRepeat,
-                    onClick = {
-                        haptics.performKeypress()
-                        onMinus()
-                    }
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(minusIcon, minusContentDescription, tint = if (minusPressed) Color(0xFF38BDF8) else getEnabledColor(enabled))
-        }
-    }
-}

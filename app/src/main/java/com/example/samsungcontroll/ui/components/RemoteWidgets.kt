@@ -1,74 +1,96 @@
 package com.example.samsungcontroll.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import com.example.samsungcontroll.ui.animation.pressScale
 import com.example.samsungcontroll.ui.haptics.LocalHapticsManager
 import com.example.samsungcontroll.ui.theme.RemoteTokens
+import com.example.samsungcontroll.ui.theme.RemoteType
 
+fun getEnabledColor(enabled: Boolean): Color =
+    if (enabled) RemoteTokens.TextPrimary else RemoteTokens.TextDisabled
+
+/**
+ * Fill and content colours for a key: idle surface, accent while pressed (the single place
+ * the signal colour confirms a touch), disabled surface when the TV is not connected.
+ */
+private fun keyFill(enabled: Boolean, pressed: Boolean): Color = when {
+    !enabled -> RemoteTokens.SurfaceDisabled
+    pressed -> RemoteTokens.Accent
+    else -> RemoteTokens.Surface2
+}
+
+private fun keyContent(enabled: Boolean, pressed: Boolean): Color = when {
+    !enabled -> RemoteTokens.TextDisabled
+    pressed -> RemoteTokens.AccentInk
+    else -> RemoteTokens.TextPrimary
+}
+
+/** Text key printed in the legend (monospace) face, like BACK / HOME / HDMI 1 on a physical remote. */
 @Composable
-fun RemoteButton(
-    icon: ImageVector,
-    contentDescription: String,
-    color: Color,
+fun RemoteKey(
+    label: String,
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    onClick: () -> Unit,
-    size: Dp = 54.dp
+    textStyle: TextStyle = RemoteType.Legend,
+    minHeight: Dp = RemoteTokens.MinTouch,
+    onClick: () -> Unit
 ) {
     val haptics = LocalHapticsManager.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
 
     Box(
-        modifier = Modifier
-            .size(size)
-            .pressScale(isPressed = isPressed, pressedScale = 0.92f)
-            .clip(CircleShape)
-            .background(
-                if (enabled) {
-                    if (isPressed) color.copy(alpha = 0.8f) else color
-                } else RemoteTokens.SurfaceDisabled
+        modifier = modifier
+            .heightIn(min = minHeight)
+            .pressScale(pressed)
+            .clip(RoundedCornerShape(RemoteTokens.RadiusKey))
+            .background(keyFill(enabled, pressed))
+            .border(
+                BorderStroke(1.dp, if (enabled) RemoteTokens.Border else Color.Transparent),
+                RoundedCornerShape(RemoteTokens.RadiusKey)
             )
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = ripple()
-            ) {
-                haptics.performClick()
+            .repeatingClickable(interaction, enabled) {
+                haptics.performKeypress()
                 onClick()
             },
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            icon,
-            contentDescription = contentDescription,
-            tint = if (enabled) Color.White else RemoteTokens.TextDisabled,
-            modifier = Modifier.size(size * 0.54f)
+        Text(
+            label,
+            style = textStyle,
+            color = keyContent(enabled, pressed),
+            textAlign = TextAlign.Center,
+            maxLines = 1
         )
     }
 }
 
+/** Icon key. [onRepeat] != null makes it fire repeatedly while held (volume, channel, transport). */
 @Composable
-fun RemoteIconButton(
+fun RemoteIconKey(
     icon: ImageVector,
     contentDescription: String,
     modifier: Modifier = Modifier,
@@ -77,179 +99,67 @@ fun RemoteIconButton(
     onClick: () -> Unit
 ) {
     val haptics = LocalHapticsManager.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
 
     Box(
         modifier = modifier
-            .size(54.dp)
-            .pressScale(isPressed = isPressed, pressedScale = 0.85f)
-            .clip(CircleShape)
-            .repeatingClickable(
-                interactionSource = interactionSource,
-                enabled = enabled,
-                onRepeat = onRepeat,
-                onClick = {
-                    haptics.performClick()
-                    onClick()
-                }
-            ),
+            .heightIn(min = RemoteTokens.MinTouch)
+            .pressScale(pressed)
+            .clip(RoundedCornerShape(RemoteTokens.RadiusKey))
+            .background(keyFill(enabled, pressed))
+            .border(
+                BorderStroke(1.dp, if (enabled) RemoteTokens.Border else Color.Transparent),
+                RoundedCornerShape(RemoteTokens.RadiusKey)
+            )
+            .repeatingClickable(interaction, enabled, onRepeat) {
+                haptics.performKeypress()
+                onClick()
+            },
         contentAlignment = Alignment.Center
     ) {
         Icon(
             icon,
             contentDescription = contentDescription,
-            tint = if (isPressed) Color.White else getEnabledColor(enabled),
-            modifier = Modifier.size(34.dp)
+            tint = keyContent(enabled, pressed),
+            modifier = Modifier.size(24.dp)
         )
     }
 }
 
+/** Round power button: outlined while the TV is on, filled red when pressing it would wake the TV. */
 @Composable
-fun RemoteSmallButton(
-    label: String,
+fun PowerKey(
+    contentDescription: String,
+    icon: ImageVector,
+    tvIsOn: Boolean,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    onClick: () -> Unit
+    size: Dp = 48.dp
 ) {
     val haptics = LocalHapticsManager.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val filled = !tvIsOn || pressed
 
     Box(
         modifier = modifier
-            .heightIn(min = 44.dp)
-            .pressScale(isPressed = isPressed, pressedScale = 0.96f)
-            .clip(RoundedCornerShape(RemoteTokens.RadiusButton))
-            .background(
-                if (enabled) {
-                    if (isPressed) RemoteTokens.Surface3 else RemoteTokens.Surface2
-                } else RemoteTokens.SurfaceDisabled
-            )
-            .border(
-                BorderStroke(1.dp, if (enabled) RemoteTokens.Border else Color.Transparent),
-                RoundedCornerShape(RemoteTokens.RadiusButton)
-            )
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = ripple()
-            ) {
-                haptics.performKeypress()
-                onClick()
-            }
-            .padding(horizontal = 8.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            label,
-            color = getEnabledColor(enabled),
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            lineHeight = 13.sp
-        )
-    }
-}
-
-@Composable
-fun AppLaunchButton(
-    label: String,
-    bgColor: Color,
-    enabled: Boolean,
-    modifier: Modifier = Modifier,
-    textColor: Color = Color.White,
-    onClick: () -> Unit
-) {
-    val haptics = LocalHapticsManager.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    Box(
-        modifier = modifier
-            .height(46.dp)
-            .pressScale(isPressed = isPressed, pressedScale = 0.95f)
-            .clip(RoundedCornerShape(RemoteTokens.RadiusButton))
-            .background(
-                if (enabled) {
-                    if (isPressed) RemoteTokens.Surface3 else RemoteTokens.Surface2
-                } else RemoteTokens.SurfaceDisabled
-            )
-            .border(
-                BorderStroke(1.dp, if (enabled) RemoteTokens.Border else Color.Transparent),
-                RoundedCornerShape(RemoteTokens.RadiusButton)
-            )
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = ripple()
-            ) {
-                haptics.performClick()
-                onClick()
-            }
-            .padding(horizontal = 6.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .clip(CircleShape)
-                    .background(if (enabled) bgColor else bgColor.copy(alpha = 0.35f))
-            )
-            Text(
-                label,
-                color = getEnabledColor(enabled),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                softWrap = false,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-fun TvColorButton(
-    color: Color,
-    label: String,
-    enabled: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val haptics = LocalHapticsManager.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    Box(
-        modifier = modifier
-            .height(36.dp)
-            .pressScale(isPressed = isPressed, pressedScale = 0.90f)
+            .size(size)
+            .pressScale(pressed)
             .clip(CircleShape)
-            .background(if (enabled) color.copy(alpha = if (isPressed) 0.75f else 0.95f) else Color(0xFF1F2937))
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = ripple()
-            ) {
+            .background(if (filled) RemoteTokens.Power else Color.Transparent)
+            .border(BorderStroke(1.5.dp, RemoteTokens.Power), CircleShape)
+            .repeatingClickable(interaction, true) {
                 haptics.performClick()
                 onClick()
             },
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = label,
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp
+        Icon(
+            icon,
+            contentDescription = contentDescription,
+            tint = if (filled) RemoteTokens.Background else RemoteTokens.Power,
+            modifier = Modifier.size(size * 0.5f)
         )
     }
-}
-
-fun getEnabledColor(enabled: Boolean): Color {
-    return if (enabled) RemoteTokens.TextPrimary else RemoteTokens.TextDisabled
 }

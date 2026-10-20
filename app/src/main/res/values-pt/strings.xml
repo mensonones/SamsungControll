@@ -100,4 +100,15 @@
     <string name="action_forget">Esquecer</string>
     <string name="settings_idle_never">Nunca</string>
     <string name="nickname_suggestions">Sugestões rápidas:</string>
+    <string name="tab_apps">Apps</string>
+    <string name="cd_dpad">Direcional</string>
+    <string name="cd_ok">OK</string>
+    <string name="app_pin">Fixar no topo</string>
+    <string name="app_unpin">Desafixar</string>
+    <string name="apps_pin_hint">Mantenha pressionado um app para fixá-lo no topo.</string>
+    <string name="connected_check">Conectado ✓</string>
+    <string name="failed_retry">Falhou · Tentar</string>
+    <string name="retry_short">TENTAR</string>
+    <string name="cd_refresh_apps">Atualizar lista de apps</string>
+    <string name="cd_open_tv_menu">Menu da TV</string>
 </resources>

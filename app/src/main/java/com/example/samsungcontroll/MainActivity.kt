@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermissionIfNeeded()
         setContent {
             SamsungControllTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF0B1020)) {
+                Surface(modifier = Modifier.fillMaxSize(), color = com.example.samsungcontroll.ui.theme.RemoteTokens.Background) {
                     RemoteControlScreen(viewModel)
                 }
             }

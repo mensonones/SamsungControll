@@ -28,3 +28,7 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+
+# Hallmark skill (local tooling)
+.agents/
+skills-lock.json

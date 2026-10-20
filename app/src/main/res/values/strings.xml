@@ -103,4 +103,15 @@
     <string name="action_forget">Forget</string>
     <string name="settings_idle_never">Never</string>
     <string name="nickname_suggestions">Quick suggestions:</string>
+    <string name="tab_apps">Apps</string>
+    <string name="cd_dpad">Directional pad</string>
+    <string name="cd_ok">OK</string>
+    <string name="app_pin">Pin to top</string>
+    <string name="app_unpin">Unpin</string>
+    <string name="apps_pin_hint">Long-press an app to pin it to the top.</string>
+    <string name="connected_check">Connected ✓</string>
+    <string name="failed_retry">Failed · Retry</string>
+    <string name="retry_short">RETRY</string>
+    <string name="cd_refresh_apps">Refresh app list</string>
+    <string name="cd_open_tv_menu">TV menu</string>
 </resources>

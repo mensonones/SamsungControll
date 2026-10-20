@@ -15,13 +15,14 @@ O projeto busca ser um controle simples, direto e privado para uso na rede local
 
 ## Funcionalidades
 
-- **Navegação por Abas Segmentadas (`TabRow`)**:
-  - **Aba 1: Controle Principal**: D-Pad neomórfico, Volume, Canais, Power, Mute, Navegação (`BACK`, `HOME`, `EXIT`) e tecla rápida `123`.
-  - **Aba 2: Números & Guia**: Teclado numérico 0-9 em grade 3x4 (`1-9`, `Pre-Ch`, `0`, `123`), atalhos diretos de entrada (`HDMI 1`, `HDMI 2`, `HDMI 3`, `TV`) e teclas de função (`GUIDE`, `INFO`, `SOURCE`, `MENU`, `LEGENDA`, `TELA 16:9`, `TOOLS`).
-  - **Aba 3: Mídia & Apps**: Botões de reprodução (`Play/Pause`, `Avançar ⏩`, `Retroceder ⏪`, `Anterior ⏮️`, `Próximo ⏭️`, `Parar ⏹️`) e 8 atalhos para apps (`Netflix`, `YouTube`, `Prime Video`, `Disney+`, `Max`, `Spotify`, `Globoplay`, `Apple TV`).
+- **Três páginas com abas na parte de baixo** (ao alcance do polegar), no sistema visual "Graphite & Signal" (ver [design.md](design.md)):
+  - **Controle**: D-Pad de quatro setores com OK no centro, `BACK`/`HOME`/`EXIT`, balancins de volume e canal e `MUTE`. Direções, volume e canal repetem enquanto pressionados.
+  - **Números**: teclado 0-9 (`Pre-Ch`, `123`), entradas (`HDMI 1-3`, `TV`), funções (`GUIDE`, `INFO`, `SOURCE`, `MENU`, `LEGENDA`, `TELA 16:9`, `TOOLS`) e o botão **Digitar na TV**.
+  - **Apps**: grade com os apps instalados na TV (ou os 8 atalhos padrão enquanto a lista não chega), fixe favoritos com toque longo, e barra de reprodução fixa (anterior, retroceder, play/pause, avançar, próximo, parar).
+- **Cabeçalho de uma linha**: nome e estado da TV (toque para trocar de TV, apelidar, ver detalhes, reconectar ou abrir configurações), busca e power.
 - **Teclado e Lista de Apps**:
   - Botão **Digitar na TV** (e abertura automática quando a TV foca um campo de texto) envia texto via `SendInputString`.
-  - A aba Mídia & Apps lista todos os aplicativos instalados na TV (`ed.installedApp.get`) além dos 8 atalhos fixos.
+  - A aba Apps lista os aplicativos instalados na TV (`ed.installedApp.get`).
 - **Configurações** (menu ⋮): liga/desliga vibração, escolhe se os botões de volume do celular controlam a TV e define um tempo de inatividade (15/30/60 min) para desconectar sozinho e liberar a notificação.
 - **Várias TVs**: toda TV conectada fica salva no menu ⋮, onde dá para trocar de TV com um toque ou esquecê-la (apaga token e certificado). O Tile e a reconexão automática seguem a TV ativa.
 - **Idiomas**: interface em inglês (padrão) e português, via `strings.xml` (`values/` e `values-pt/`); o app segue o idioma do sistema.
@@ -52,9 +53,9 @@ O projeto busca ser um controle simples, direto e privado para uso na rede local
 
 ## Capturas de Tela
 
-| Controle Principal | Números & Guia | Mídia & Apps |
+| Controle | Números | Apps |
 |:---:|:---:|:---:|
-| <img src="docs/screenshots/device_remote_main.png" width="240" alt="Controle Principal"/> | <img src="docs/screenshots/device_remote_numeros.png" width="240" alt="Números e Guia"/> | <img src="docs/screenshots/device_remote_media.png" width="240" alt="Mídia e Apps"/> |
+| <img src="docs/screenshots/device_remote_main.png" width="240" alt="Controle Principal"/> | <img src="docs/screenshots/device_remote_numeros.png" width="240" alt="Números e Guia"/> | <img src="docs/screenshots/device_remote_media.png" width="240" alt="Apps"/> |
 
 ## Stack
 

@@ -21,11 +21,17 @@ class AppSettings(context: Context) {
         get() = prefs.getInt(KEY_IDLE_TIMEOUT, 0)
         set(value) = prefs.edit { putInt(KEY_IDLE_TIMEOUT, value) }
 
+    /** App ids the user pinned to the top of the Apps page. */
+    var favoriteAppIds: Set<String>
+        get() = prefs.getStringSet(KEY_FAVORITE_APPS, emptySet()).orEmpty().toSet()
+        set(value) = prefs.edit { putStringSet(KEY_FAVORITE_APPS, value) }
+
     companion object {
         val IDLE_TIMEOUT_OPTIONS = listOf(0, 15, 30, 60)
         private const val PREFS_NAME = "app_settings"
         private const val KEY_HAPTICS = "haptics_enabled"
         private const val KEY_VOLUME_KEYS = "volume_keys_enabled"
+        private const val KEY_FAVORITE_APPS = "favorite_app_ids"
         private const val KEY_IDLE_TIMEOUT = "idle_timeout_minutes"
     }
 }

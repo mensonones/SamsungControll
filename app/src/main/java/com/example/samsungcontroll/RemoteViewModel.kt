@@ -66,6 +66,9 @@ class RemoteViewModel(
     var idleTimeoutMinutes by mutableStateOf(appSettings.idleTimeoutMinutes)
         private set
 
+    var favoriteAppIds by mutableStateOf(appSettings.favoriteAppIds)
+        private set
+
     var installedApps by mutableStateOf<List<TvApp>>(emptyList())
         private set
 
@@ -479,6 +482,12 @@ class RemoteViewModel(
                 )
             }
         }
+    }
+
+    fun toggleFavoriteApp(appId: String) {
+        val updated = if (appId in favoriteAppIds) favoriteAppIds - appId else favoriteAppIds + appId
+        favoriteAppIds = updated
+        appSettings.favoriteAppIds = updated
     }
 
     fun updateHapticsEnabled(enabled: Boolean) {
