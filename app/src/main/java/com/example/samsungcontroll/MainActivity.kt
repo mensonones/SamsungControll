@@ -1,6 +1,7 @@
 package com.example.samsungcontroll
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -44,6 +45,8 @@ class MainActivity : ComponentActivity() {
      * active. When disconnected we fall back to the default behavior so the
      * phone's own volume still works.
      */
+    // Lint false positive: ComponentActivity.dispatchKeyEvent is a normal public override.
+    @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val keyCode = event.keyCode
         val isVolumeKey = keyCode == KeyEvent.KEYCODE_VOLUME_UP ||

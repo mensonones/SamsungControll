@@ -1,5 +1,6 @@
 package com.example.samsungcontroll
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
@@ -142,6 +143,8 @@ class TvPowerTileService : TileService(), KoinComponent {
         }
     }
 
+    // The Intent overload is only used below API 34; newer versions take the PendingIntent branch.
+    @SuppressLint("StartActivityAndCollapseDeprecated")
     private fun openApp() {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP

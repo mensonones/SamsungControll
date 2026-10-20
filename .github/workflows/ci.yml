@@ -17,6 +17,5 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Unit tests and debug build
         run: ./gradlew testDebugUnitTest assembleDebug
-      - name: Lint (informational)
+      - name: Lint
         run: ./gradlew lintDebug
-        continue-on-error: true
