@@ -133,4 +133,7 @@
     <string name="shortcut_pin_unsupported">Your launcher does not support pinned shortcuts</string>
     <string name="settings_background_control">Keep connected in the background</string>
     <string name="settings_background_control_hint">Volume buttons control the TV even with the screen off. Shows a notification while connected.</string>
+    <string name="tab_touch">Touch</string>
+    <string name="touchpad_hint">Swipe to move · tap for OK
+double-tap for Home · long-press for Back</string>
 </resources>

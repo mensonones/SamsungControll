@@ -130,4 +130,7 @@
     <string name="shortcut_pin_unsupported">Seu launcher não suporta atalhos fixos</string>
     <string name="settings_background_control">Manter conectado em segundo plano</string>
     <string name="settings_background_control_hint">Os botões de volume controlam a TV mesmo com a tela apagada. Mostra uma notificação enquanto conectado.</string>
+    <string name="tab_touch">Toque</string>
+    <string name="touchpad_hint">Deslize para mover · toque para OK
+toque duplo para Início · toque longo para Voltar</string>
 </resources>

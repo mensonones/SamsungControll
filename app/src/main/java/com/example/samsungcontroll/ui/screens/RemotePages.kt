@@ -45,7 +45,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import kotlin.math.abs
+import kotlin.math.sign
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.DropdownMenu
@@ -116,7 +124,8 @@ fun RemoteBody(
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when (selectedTab) {
                 0 -> ControlPage(isConnected, isMuted, onToggleMute, onSendKey)
-                1 -> KeypadPage(isConnected, onSendKey, onShowKeyboard, onRunScene)
+                1 -> TouchpadPage(isConnected, onSendKey)
+                2 -> KeypadPage(isConnected, onSendKey, onShowKeyboard, onRunScene)
                 else -> AppsPage(
                     isConnected, installedApps, favoriteAppIds, onToggleFavorite,
                     onLaunchApp, onRefreshApps, onSendKey, onRunScene
@@ -237,6 +246,86 @@ private fun Rocker(
         RemoteIconKey(plusIcon, plusDescription, Modifier.fillMaxWidth().height(64.dp), enabled, onRepeat = onPlus, onClick = onPlus)
         Text(legend, style = RemoteType.Legend, color = RemoteTokens.TextSecondary)
         RemoteIconKey(minusIcon, minusDescription, Modifier.fillMaxWidth().height(64.dp), enabled, onRepeat = onMinus, onClick = onMinus)
+    }
+}
+
+/**
+ * Gesture pad, like the Google TV remote: swipe to move (one key per ~56 dp travelled),
+ * tap for OK, double-tap for Home, long-press for Back. Uses only plain remote keys.
+ */
+@Composable
+private fun TouchpadPage(
+    isConnected: Boolean,
+    onSendKey: (String) -> Unit
+) {
+    val haptics = LocalHapticsManager.current
+    val currentSend = rememberUpdatedState(onSendKey)
+    var pressed by remember { mutableStateOf(false) }
+    val stepPx = with(LocalDensity.current) { 56.dp.toPx() }
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(RemoteTokens.Space4),
+        verticalArrangement = Arrangement.spacedBy(RemoteTokens.Space3)
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(RemoteTokens.RadiusSurface))
+                .background(if (isConnected) RemoteTokens.Surface1 else RemoteTokens.SurfaceDisabled)
+                .border(
+                    1.dp,
+                    if (pressed) RemoteTokens.Accent else RemoteTokens.Border,
+                    RoundedCornerShape(RemoteTokens.RadiusSurface)
+                )
+                .pointerInput(isConnected) {
+                    if (!isConnected) return@pointerInput
+                    detectTapGestures(
+                        onPress = { pressed = true; tryAwaitRelease(); pressed = false },
+                        onTap = { haptics.performKeypress(); currentSend.value("KEY_ENTER") },
+                        onDoubleTap = { haptics.performClick(); currentSend.value("KEY_HOME") },
+                        onLongPress = { haptics.performToggle(); currentSend.value("KEY_RETURN") }
+                    )
+                }
+                .pointerInput(isConnected) {
+                    if (!isConnected) return@pointerInput
+                    var accX = 0f
+                    var accY = 0f
+                    detectDragGestures(
+                        onDragStart = { accX = 0f; accY = 0f },
+                        onDrag = { change, drag ->
+                            change.consume()
+                            accX += drag.x
+                            accY += drag.y
+                            while (abs(accX) >= stepPx || abs(accY) >= stepPx) {
+                                if (abs(accX) >= abs(accY)) {
+                                    currentSend.value(if (accX > 0) "KEY_RIGHT" else "KEY_LEFT")
+                                    accX -= stepPx * sign(accX)
+                                    accY = 0f
+                                } else {
+                                    currentSend.value(if (accY > 0) "KEY_DOWN" else "KEY_UP")
+                                    accY -= stepPx * sign(accY)
+                                    accX = 0f
+                                }
+                                haptics.performKeypress()
+                            }
+                        }
+                    )
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = stringResource(R.string.touchpad_hint),
+                style = RemoteType.Caption,
+                color = RemoteTokens.TextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(RemoteTokens.Space6)
+            )
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(RemoteTokens.Space2)) {
+            RemoteKey("BACK", Modifier.weight(1f), isConnected) { onSendKey("KEY_RETURN") }
+            RemoteKey("HOME", Modifier.weight(1f), isConnected) { onSendKey("KEY_HOME") }
+        }
     }
 }
 
@@ -506,6 +595,7 @@ private fun RemoteTabRail(selected: Int, onSelect: (Int) -> Unit) {
     val haptics = LocalHapticsManager.current
     val titles = listOf(
         stringResource(R.string.tab_control),
+        stringResource(R.string.tab_touch),
         stringResource(R.string.tab_numbers),
         stringResource(R.string.tab_apps)
     )
