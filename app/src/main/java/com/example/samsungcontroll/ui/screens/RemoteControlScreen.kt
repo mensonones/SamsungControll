@@ -1282,7 +1282,7 @@ private fun ConnectionTvRow(
                 Text(stringResource(R.string.connecting_short), color = RemoteTokens.Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
             isFailed -> Text("Falhou · Tentar", color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            else -> Icon(Icons.Default.KeyboardArrowRight, stringResource(R.string.cd_connect), tint = RemoteTokens.Accent, modifier = Modifier.size(22.dp))
+            else -> Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, stringResource(R.string.cd_connect), tint = RemoteTokens.Accent, modifier = Modifier.size(22.dp))
         }
     }
 }
