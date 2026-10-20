@@ -770,7 +770,7 @@ private fun ConnectionSheet(
                 OutlinedButton(
                     onClick = { showManualInput = true },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(RemoteTokens.RadiusButton),
+                    shape = RoundedCornerShape(RemoteTokens.RadiusKey),
                     border = BorderStroke(1.dp, RemoteTokens.BorderStrong)
                 ) {
                     Icon(Icons.Default.EditNote, null, tint = RemoteTokens.Accent, modifier = Modifier.size(18.dp))
