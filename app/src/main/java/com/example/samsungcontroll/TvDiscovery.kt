@@ -5,6 +5,9 @@ import android.net.wifi.WifiManager
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.net.DatagramPacket
@@ -20,7 +23,10 @@ data class DiscoveredTv(
     val macAddress: String? = null
 )
 
-class TvDiscovery(private val context: Context) : DiscoveryService {
+class TvDiscovery(
+    private val context: Context,
+    private val deviceInfoResolver: SamsungDeviceInfoResolver = SamsungDeviceInfoResolver()
+) : DiscoveryService {
     private val ssdpMulticastAddress = "239.255.255.250"
     private val ssdpPort = 1900
     private val macAddressResolver = MacAddressResolver()
@@ -99,7 +105,23 @@ class TvDiscovery(private val context: Context) : DiscoveryService {
             }
         }
 
-        discovered.values.toList()
+        discovered.values.toList().withDeviceInfo()
+    }
+
+    /** Replaces the generic "Samsung Smart TV" label with the name/model the TV reports. */
+    private suspend fun List<DiscoveredTv>.withDeviceInfo(): List<DiscoveredTv> = coroutineScope {
+        map { tv ->
+            async(Dispatchers.IO) {
+                val info = runCatching { deviceInfoResolver.fetchDeviceInfo(tv.ip) }.getOrNull()
+                    ?: return@async tv
+                val friendly = info.name.takeIf { it != "Smart TV" && it.isNotBlank() }
+                    ?: info.modelName.takeIf { it != "Samsung Smart TV" && it.isNotBlank() }
+                tv.copy(
+                    name = friendly ?: tv.name,
+                    macAddress = info.macAddress.takeIf { it.isNotBlank() } ?: tv.macAddress
+                )
+            }
+        }.awaitAll()
     }
 }
 

@@ -75,7 +75,7 @@ class RemoteViewModel(
         if (lastIp.isNotBlank() && connectionState == ConnectionState.DISCONNECTED) {
             ipAddress = lastIp
             // Direct attempt first; Wake-on-LAN only if the TV doesn't answer.
-            connectToTv(lastIp, lastIdentity, wakeOnFailure = true, retriesAfterWake = 0)
+            connectToTv(lastIp, lastIdentity, wakeOnFailure = true, retriesAfterWake = 0, rediscover = true)
         }
         registerNetworkMonitoring()
         registerDisconnectReceiver()
@@ -127,7 +127,7 @@ class RemoteViewModel(
         val lastIdentity = tvPreferences.getLastConnectedIdentity()
         if (lastIp.isNotBlank()) {
             ipAddress = lastIp
-            connectToTv(lastIp, lastIdentity, wakeOnFailure = false, retriesAfterWake = 0)
+            connectToTv(lastIp, lastIdentity, wakeOnFailure = false, retriesAfterWake = 0, rediscover = true)
         }
     }
 
@@ -142,7 +142,7 @@ class RemoteViewModel(
             ipAddress = lastIp
             // Try a direct reconnect first (instant when the TV is on) and only fall
             // back to the slower Wake-On-LAN flow if the direct attempt fails.
-            connectToTv(lastIp, lastIdentity, wakeOnFailure = true, retriesAfterWake = 0)
+            connectToTv(lastIp, lastIdentity, wakeOnFailure = true, retriesAfterWake = 0, rediscover = true)
         }
     }
 
@@ -202,7 +202,8 @@ class RemoteViewModel(
         ip: String,
         identity: String? = null,
         wakeOnFailure: Boolean,
-        retriesAfterWake: Int
+        retriesAfterWake: Int,
+        rediscover: Boolean = false
     ) {
         val cleanIp = ip.trim()
         if (cleanIp.isBlank()) return
@@ -244,26 +245,62 @@ class RemoteViewModel(
                             // Waking the TV can't fix a changed certificate; surface it.
                             connectionState = newState
                             stopConnectionService()
-                        } else if (newState == ConnectionState.FAILED && wakeOnFailure && macAddress.isNotBlank()) {
-                            connectionState = ConnectionState.CONNECTING
-                            wakeAndReconnect(currentAttempt, cleanIp, savedIdentity)
-                        } else if (newState == ConnectionState.FAILED && retriesAfterWake > 0) {
-                            connectionState = ConnectionState.CONNECTING
-                            retryConnectAfterWake(currentAttempt, cleanIp, savedIdentity, retriesAfterWake - 1)
                         } else {
-                            connectionState = newState
-                            if (newState == ConnectionState.CONNECTED) {
-                                showDiscovery = false
-                                saveResolvedMacAddress(cleanIp, savedIdentity)
-                                startConnectionService()
-                            } else {
-                                stopConnectionService()
+                            if (newState == ConnectionState.FAILED && rediscover && savedIdentity != null) {
+                                // The TV may have a new DHCP address: look it up by its SSDP
+                                // identity while the normal wake/retry flow keeps going.
+                                rediscoverByIdentity(currentAttempt, savedIdentity, cleanIp)
                             }
+                            handleStateChange(newState, wakeOnFailure, retriesAfterWake, currentAttempt, cleanIp, savedIdentity)
                         }
                     }
                 }
             }
         ).apply { connect() }
+    }
+
+    private fun handleStateChange(
+        newState: ConnectionState,
+        wakeOnFailure: Boolean,
+        retriesAfterWake: Int,
+        currentAttempt: Int,
+        cleanIp: String,
+        savedIdentity: String?
+    ) {
+        if (newState == ConnectionState.FAILED && wakeOnFailure && macAddress.isNotBlank()) {
+            connectionState = ConnectionState.CONNECTING
+            wakeAndReconnect(currentAttempt, cleanIp, savedIdentity)
+        } else if (newState == ConnectionState.FAILED && retriesAfterWake > 0) {
+            connectionState = ConnectionState.CONNECTING
+            retryConnectAfterWake(currentAttempt, cleanIp, savedIdentity, retriesAfterWake - 1)
+        } else {
+            connectionState = newState
+            if (newState == ConnectionState.CONNECTED) {
+                showDiscovery = false
+                saveResolvedMacAddress(cleanIp, savedIdentity)
+                startConnectionService()
+            } else {
+                stopConnectionService()
+            }
+        }
+    }
+
+    /**
+     * Looks for the TV by its SSDP identity (UUID). If it answers from another address
+     * (new DHCP lease), moves the saved IP and pinned certificate over and reconnects there.
+     */
+    private fun rediscoverByIdentity(attempt: Int, identity: String, oldIp: String) {
+        viewModelScope.launch {
+            val found = discoveryService.discoverTvs().firstOrNull { it.identity == identity }
+            if (found == null || found.ip == oldIp || attempt != connectionAttempt) return@launch
+
+            Log.d("RemoteViewModel", "TV moved from $oldIp to ${found.ip}")
+            // Keep the TOFU pin: the new address inherits the certificate pinned for the old one.
+            tvPreferences.getCertificateFingerprint(oldIp)?.let {
+                tvPreferences.saveCertificateFingerprint(found.ip, it)
+            }
+            connectToTv(found.ip, identity, wakeOnFailure = false, retriesAfterWake = WAKE_RECONNECT_RETRIES)
+        }
     }
 
     fun reconnect() {
@@ -272,7 +309,8 @@ class RemoteViewModel(
                 ipAddress,
                 tvPreferences.getLastConnectedIdentity(),
                 wakeOnFailure = true,
-                retriesAfterWake = 0
+                retriesAfterWake = 0,
+                rediscover = true
             )
         }
     }
