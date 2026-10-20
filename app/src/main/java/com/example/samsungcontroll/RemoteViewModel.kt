@@ -289,6 +289,8 @@ class RemoteViewModel(
         }
 
         val currentAttempt = ++connectionAttempt
+        // True once this connection opened; later failures mean the TV went away (see failureAction).
+        var connectedOnce = false
         val lastIp = tvPreferences.getLastConnectedIp()
         val savedIdentity = identity ?: tvPreferences.getLastConnectedIdentity().takeIf { cleanIp == lastIp }
         val savedToken = tvPreferences.getToken(cleanIp, savedIdentity)
@@ -333,12 +335,13 @@ class RemoteViewModel(
                             connectionState = newState
                             stopConnectionService()
                         } else {
-                            if (newState == ConnectionState.FAILED && rediscover && savedIdentity != null) {
+                            if (newState == ConnectionState.CONNECTED) connectedOnce = true
+                            if (newState == ConnectionState.FAILED && rediscover && savedIdentity != null && !connectedOnce) {
                                 // The TV may have a new DHCP address: look it up by its SSDP
                                 // identity while the normal wake/retry flow keeps going.
                                 rediscoverByIdentity(currentAttempt, savedIdentity, cleanIp)
                             }
-                            handleStateChange(newState, wakeOnFailure, retriesAfterWake, currentAttempt, cleanIp, savedIdentity)
+                            handleStateChange(newState, connectedOnce, wakeOnFailure, retriesAfterWake, currentAttempt, cleanIp, savedIdentity)
                         }
                     }
                 }
@@ -348,16 +351,22 @@ class RemoteViewModel(
 
     private fun handleStateChange(
         newState: ConnectionState,
+        connectedOnce: Boolean,
         wakeOnFailure: Boolean,
         retriesAfterWake: Int,
         currentAttempt: Int,
         cleanIp: String,
         savedIdentity: String?
     ) {
-        if (newState == ConnectionState.FAILED && wakeOnFailure && macAddress.isNotBlank()) {
+        val recovery = if (newState == ConnectionState.FAILED) {
+            failureAction(connectedOnce, wakeOnFailure, macAddress.isNotBlank(), retriesAfterWake)
+        } else {
+            FailureAction.SURFACE
+        }
+        if (recovery == FailureAction.WAKE_AND_RECONNECT) {
             connectionState = ConnectionState.CONNECTING
             wakeAndReconnect(currentAttempt, cleanIp, savedIdentity)
-        } else if (newState == ConnectionState.FAILED && retriesAfterWake > 0) {
+        } else if (recovery == FailureAction.RETRY) {
             connectionState = ConnectionState.CONNECTING
             retryConnectAfterWake(currentAttempt, cleanIp, savedIdentity, retriesAfterWake - 1)
         } else {
