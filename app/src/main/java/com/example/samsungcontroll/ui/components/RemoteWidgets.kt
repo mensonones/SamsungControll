@@ -73,23 +73,28 @@ fun RemoteIconButton(
     contentDescription: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    onRepeat: () -> Unit = {},
     onClick: () -> Unit
 ) {
     val haptics = LocalHapticsManager.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    IconButton(
-        onClick = {
-            haptics.performClick()
-            onClick()
-        },
+    Box(
         modifier = modifier
             .size(54.dp)
             .pressScale(isPressed = isPressed, pressedScale = 0.85f)
-            .clip(CircleShape),
-        enabled = enabled,
-        interactionSource = interactionSource
+            .clip(CircleShape)
+            .repeatingClickable(
+                interactionSource = interactionSource,
+                enabled = enabled,
+                onRepeat = onRepeat,
+                onClick = {
+                    haptics.performClick()
+                    onClick()
+                }
+            ),
+        contentAlignment = Alignment.Center
     ) {
         Icon(
             icon,

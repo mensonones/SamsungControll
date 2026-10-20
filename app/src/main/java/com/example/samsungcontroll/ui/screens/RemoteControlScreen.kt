@@ -101,11 +101,13 @@ import com.example.samsungcontroll.ConnectionState
 import com.example.samsungcontroll.DiscoveredTv
 import com.example.samsungcontroll.R
 import com.example.samsungcontroll.RemoteViewModel
+import com.example.samsungcontroll.TvConnectionException
 import com.example.samsungcontroll.TvDeviceInfo
 import com.example.samsungcontroll.ui.animation.pressScale
 import com.example.samsungcontroll.ui.components.AppLaunchButton
 import com.example.samsungcontroll.ui.components.RemoteButton
 import com.example.samsungcontroll.ui.components.RemoteIconButton
+import com.example.samsungcontroll.ui.components.repeatingClickable
 import com.example.samsungcontroll.ui.components.RemoteSmallButton
 import com.example.samsungcontroll.ui.components.getEnabledColor
 import com.example.samsungcontroll.ui.theme.RemoteTokens
@@ -234,7 +236,8 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
 
             ConnectionStatusBanner(
                 connectionState = viewModel.connectionState,
-                onReconnect = { viewModel.reconnect() }
+                certificateChanged = viewModel.connectionError is TvConnectionException.CertificateMismatch,
+                onRepair = { viewModel.forgetPairingAndReconnect() }
             )
 
             if (viewModel.showDiscovery) {
@@ -793,11 +796,42 @@ private const val SPLASH_DURATION_MS = 900L
 @Composable
 private fun ConnectionStatusBanner(
     connectionState: ConnectionState,
-    onReconnect: () -> Unit
+    certificateChanged: Boolean,
+    onRepair: () -> Unit
 ) {
     val haptics = LocalHapticsManager.current
 
     when (connectionState) {
+        ConnectionState.FAILED -> if (certificateChanged) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF3B0D0D)),
+                border = BorderStroke(1.dp, Color(0xFFEF4444))
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        "Certificado da TV mudou",
+                        color = Color(0xFFEF4444),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        "Isso acontece após atualizar o firmware da TV. Se foi você, pareie novamente; " +
+                            "caso contrário, outro dispositivo pode estar se passando pela TV.",
+                        color = Color(0xFFFECACA),
+                        fontSize = 11.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(onClick = { haptics.performClick(); onRepair() }) {
+                        Text("Parear novamente", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
         ConnectionState.WAITING_FOR_PERMISSION -> {
             Card(
                 modifier = Modifier
@@ -830,8 +864,7 @@ private fun ConnectionStatusBanner(
                 }
             }
         }
-        // FAILED is surfaced by the header status (single source of truth); tapping
-        // it retries. No separate banner.
+        // Other failures are surfaced by the header status; tapping it retries.
         else -> {}
     }
 }
@@ -1420,10 +1453,10 @@ private fun DPad(
             ),
         contentAlignment = Alignment.Center
     ) {
-        RemoteIconButton(Icons.Default.ArrowDropUp, "Navegar para cima", Modifier.align(Alignment.TopCenter).padding(top = 4.dp), enabled, onUp)
-        RemoteIconButton(Icons.Default.ArrowDropDown, "Navegar para baixo", Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp), enabled, onDown)
-        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowLeft, "Navegar para esquerda", Modifier.align(Alignment.CenterStart).padding(start = 4.dp), enabled, onLeft)
-        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowRight, "Navegar para direita", Modifier.align(Alignment.CenterEnd).padding(end = 4.dp), enabled, onRight)
+        RemoteIconButton(Icons.Default.ArrowDropUp, "Navegar para cima", Modifier.align(Alignment.TopCenter).padding(top = 4.dp), enabled = enabled, onRepeat = onUp, onClick = onUp)
+        RemoteIconButton(Icons.Default.ArrowDropDown, "Navegar para baixo", Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp), enabled = enabled, onRepeat = onDown, onClick = onDown)
+        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowLeft, "Navegar para esquerda", Modifier.align(Alignment.CenterStart).padding(start = 4.dp), enabled = enabled, onRepeat = onLeft, onClick = onLeft)
+        RemoteIconButton(Icons.AutoMirrored.Filled.ArrowRight, "Navegar para direita", Modifier.align(Alignment.CenterEnd).padding(end = 4.dp), enabled = enabled, onRepeat = onRight, onClick = onRight)
         Box(
             modifier = Modifier
                 .size(76.dp)
@@ -1572,7 +1605,9 @@ private fun RemoteVerticalControl(
     plusContentDescription: String,
     minusContentDescription: String,
     onPlus: () -> Unit,
-    onMinus: () -> Unit
+    onMinus: () -> Unit,
+    onPlusRepeat: () -> Unit = onPlus,
+    onMinusRepeat: () -> Unit = onMinus
 ) {
     val haptics = LocalHapticsManager.current
 
@@ -1592,14 +1627,21 @@ private fun RemoteVerticalControl(
     ) {
         val plusInter = remember { MutableInteractionSource() }
         val plusPressed by plusInter.collectIsPressedAsState()
-        IconButton(
-            onClick = {
-                haptics.performKeypress()
-                onPlus()
-            },
-            enabled = enabled,
-            interactionSource = plusInter,
-            modifier = Modifier.pressScale(isPressed = plusPressed, pressedScale = 0.85f)
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .pressScale(isPressed = plusPressed, pressedScale = 0.85f)
+                .clip(CircleShape)
+                .repeatingClickable(
+                    interactionSource = plusInter,
+                    enabled = enabled,
+                    onRepeat = onPlusRepeat,
+                    onClick = {
+                        haptics.performKeypress()
+                        onPlus()
+                    }
+                ),
+            contentAlignment = Alignment.Center
         ) {
             Icon(plusIcon, plusContentDescription, tint = if (plusPressed) Color(0xFF38BDF8) else getEnabledColor(enabled))
         }
@@ -1624,14 +1666,21 @@ private fun RemoteVerticalControl(
 
         val minusInter = remember { MutableInteractionSource() }
         val minusPressed by minusInter.collectIsPressedAsState()
-        IconButton(
-            onClick = {
-                haptics.performKeypress()
-                onMinus()
-            },
-            enabled = enabled,
-            interactionSource = minusInter,
-            modifier = Modifier.pressScale(isPressed = minusPressed, pressedScale = 0.85f)
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .pressScale(isPressed = minusPressed, pressedScale = 0.85f)
+                .clip(CircleShape)
+                .repeatingClickable(
+                    interactionSource = minusInter,
+                    enabled = enabled,
+                    onRepeat = onMinusRepeat,
+                    onClick = {
+                        haptics.performKeypress()
+                        onMinus()
+                    }
+                ),
+            contentAlignment = Alignment.Center
         ) {
             Icon(minusIcon, minusContentDescription, tint = if (minusPressed) Color(0xFF38BDF8) else getEnabledColor(enabled))
         }
