@@ -48,12 +48,14 @@ class MainActivity : ComponentActivity() {
         val keyCode = event.keyCode
         val isVolumeKey = keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
             keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
-        if (isVolumeKey && viewModel.connectionState == ConnectionState.CONNECTED) {
+        if (isVolumeKey && viewModel.volumeKeysEnabled &&
+            viewModel.connectionState == ConnectionState.CONNECTED
+        ) {
             if (event.action == KeyEvent.ACTION_DOWN) {
                 viewModel.sendKey(
                     if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) "KEY_VOLUP" else "KEY_VOLDOWN"
                 )
-                performVolumeHaptic()
+                if (viewModel.hapticsEnabled) performVolumeHaptic()
             }
             return true
         }

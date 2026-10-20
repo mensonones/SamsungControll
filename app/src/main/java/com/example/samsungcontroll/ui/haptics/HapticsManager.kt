@@ -92,6 +92,16 @@ class NoOpHapticsManager : HapticsManager {
     override fun performToggle() {}
 }
 
+/** Delegates to [delegate] only while [isEnabled] returns true (user setting). */
+class ToggleableHapticsManager(
+    private val delegate: HapticsManager,
+    private val isEnabled: () -> Boolean
+) : HapticsManager {
+    override fun performClick() { if (isEnabled()) delegate.performClick() }
+    override fun performKeypress() { if (isEnabled()) delegate.performKeypress() }
+    override fun performToggle() { if (isEnabled()) delegate.performToggle() }
+}
+
 /**
  * CompositionLocal providing access to the current [HapticsManager].
  */

@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -25,7 +26,8 @@ class RemoteViewModel(
     private val discoveryService: DiscoveryService = TvDiscovery(application),
     private val macAddressResolver: MacAddressResolver = MacAddressResolver(),
     private val samsungDeviceInfoResolver: SamsungDeviceInfoResolver = SamsungDeviceInfoResolver(),
-    private val wakeOnLanSender: WakeOnLanSender = WakeOnLanSender(application)
+    private val wakeOnLanSender: WakeOnLanSender = WakeOnLanSender(application),
+    private val appSettings: AppSettings = AppSettings(application)
 ) : AndroidViewModel(application) {
 
     var ipAddress by mutableStateOf("")
@@ -50,6 +52,15 @@ class RemoteViewModel(
         private set
 
     var isMuted by mutableStateOf(false)
+        private set
+
+    var hapticsEnabled by mutableStateOf(appSettings.hapticsEnabled)
+        private set
+
+    var volumeKeysEnabled by mutableStateOf(appSettings.volumeKeysEnabled)
+        private set
+
+    var idleTimeoutMinutes by mutableStateOf(appSettings.idleTimeoutMinutes)
         private set
 
     var installedApps by mutableStateOf<List<TvApp>>(emptyList())
@@ -299,6 +310,7 @@ class RemoteViewModel(
                 saveResolvedMacAddress(cleanIp, savedIdentity)
                 startConnectionService()
                 controller?.requestInstalledApps()
+                startIdleWatch()
             } else {
                 stopConnectionService()
             }
@@ -425,11 +437,48 @@ class RemoteViewModel(
         }
     }
 
+    fun updateHapticsEnabled(enabled: Boolean) {
+        hapticsEnabled = enabled
+        appSettings.hapticsEnabled = enabled
+    }
+
+    fun updateVolumeKeysEnabled(enabled: Boolean) {
+        volumeKeysEnabled = enabled
+        appSettings.volumeKeysEnabled = enabled
+    }
+
+    fun updateIdleTimeoutMinutes(minutes: Int) {
+        idleTimeoutMinutes = minutes
+        appSettings.idleTimeoutMinutes = minutes
+        lastInteractionAt = System.currentTimeMillis()
+    }
+
+    private var lastInteractionAt = System.currentTimeMillis()
+    private var idleJob: Job? = null
+
+    /** Closes the connection after [idleTimeoutMinutes] without any command sent. */
+    private fun startIdleWatch() {
+        idleJob?.cancel()
+        lastInteractionAt = System.currentTimeMillis()
+        idleJob = viewModelScope.launch {
+            while (true) {
+                delay(IDLE_CHECK_INTERVAL_MS)
+                val limitMs = idleTimeoutMinutes * 60_000L
+                if (limitMs > 0 && System.currentTimeMillis() - lastInteractionAt >= limitMs) {
+                    disconnect()
+                    return@launch
+                }
+            }
+        }
+    }
+
     fun sendKey(key: String) {
+        lastInteractionAt = System.currentTimeMillis()
         controller?.sendKey(key)
     }
 
     fun sendText(text: String) {
+        lastInteractionAt = System.currentTimeMillis()
         controller?.sendText(text)
     }
 
@@ -438,6 +487,7 @@ class RemoteViewModel(
     }
 
     fun launchApp(appId: String) {
+        lastInteractionAt = System.currentTimeMillis()
         controller?.launchApp(appId)
     }
 
@@ -462,6 +512,8 @@ class RemoteViewModel(
     }
 
     fun disconnect() {
+        idleJob?.cancel()
+        idleJob = null
         connectionAttempt++
         controller?.disconnect()
         controller = null
@@ -498,5 +550,6 @@ class RemoteViewModel(
         const val WAKE_RECONNECT_RETRY_DELAY_MS = 6_000L
         const val WAKE_RECONNECT_RETRIES = 5
         const val MIN_SEARCH_DURATION_MS = 1_200L
+        const val IDLE_CHECK_INTERVAL_MS = 30_000L
     }
 }

@@ -60,6 +60,9 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Switch
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -102,6 +105,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.samsungcontroll.AppSettings
 import com.example.samsungcontroll.ConnectionState
 import com.example.samsungcontroll.DiscoveredTv
 import com.example.samsungcontroll.R
@@ -134,6 +138,7 @@ import androidx.compose.ui.geometry.Offset
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.PI
+import com.example.samsungcontroll.ui.haptics.ToggleableHapticsManager
 import com.example.samsungcontroll.ui.haptics.rememberHapticsManager
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.DisposableEffect
@@ -144,7 +149,10 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun RemoteControlScreen(viewModel: RemoteViewModel) {
-    val hapticsManager = rememberHapticsManager()
+    val baseHaptics = rememberHapticsManager()
+    val hapticsManager = remember(baseHaptics) {
+        ToggleableHapticsManager(baseHaptics) { viewModel.hapticsEnabled }
+    }
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner) {
@@ -181,10 +189,23 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
     var showNicknameDialog by remember { mutableStateOf(false) }
     var showDetailsDialog by remember { mutableStateOf(false) }
     var showKeyboardDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
 
     // The TV opened a text field (search box, password…): bring up our keyboard dialog.
     LaunchedEffect(viewModel.tvTextInputActive) {
         if (viewModel.tvTextInputActive) showKeyboardDialog = true
+    }
+
+    if (showSettingsDialog) {
+        SettingsDialog(
+            hapticsEnabled = viewModel.hapticsEnabled,
+            volumeKeysEnabled = viewModel.volumeKeysEnabled,
+            idleTimeoutMinutes = viewModel.idleTimeoutMinutes,
+            onHapticsChange = viewModel::updateHapticsEnabled,
+            onVolumeKeysChange = viewModel::updateVolumeKeysEnabled,
+            onIdleTimeoutChange = viewModel::updateIdleTimeoutMinutes,
+            onDismiss = { showSettingsDialog = false }
+        )
     }
 
     if (showKeyboardDialog) {
@@ -251,7 +272,8 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
                 },
                 onReconnect = { viewModel.reconnect() },
                 onEditNickname = { showNicknameDialog = true },
-                onShowDetails = { showDetailsDialog = true }
+                onShowDetails = { showDetailsDialog = true },
+                onShowSettings = { showSettingsDialog = true }
             )
 
             ConnectionStatusBanner(
@@ -340,6 +362,59 @@ private fun TvDetailsDialog(
             }
         }
     )
+}
+
+@Composable
+private fun SettingsDialog(
+    hapticsEnabled: Boolean,
+    volumeKeysEnabled: Boolean,
+    idleTimeoutMinutes: Int,
+    onHapticsChange: (Boolean) -> Unit,
+    onVolumeKeysChange: (Boolean) -> Unit,
+    onIdleTimeoutChange: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF111827),
+        title = { Text("Configurações", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                SettingSwitchRow("Vibração ao tocar", hapticsEnabled, onHapticsChange)
+                SettingSwitchRow(
+                    "Botões de volume do celular controlam a TV",
+                    volumeKeysEnabled,
+                    onVolumeKeysChange
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Desconectar após inatividade", color = Color.White, fontSize = 13.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        AppSettings.IDLE_TIMEOUT_OPTIONS.forEach { minutes ->
+                            FilterChip(
+                                selected = minutes == idleTimeoutMinutes,
+                                onClick = { onIdleTimeoutChange(minutes) },
+                                label = { Text(if (minutes == 0) "Nunca" else "$minutes min", fontSize = 12.sp) }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Fechar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        }
+    )
+}
+
+@Composable
+private fun SettingSwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.width(12.dp))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
 }
 
 @Composable
@@ -633,7 +708,8 @@ private fun RemoteHeader(
     onToggleDiscovery: () -> Unit,
     onReconnect: () -> Unit,
     onEditNickname: () -> Unit,
-    onShowDetails: () -> Unit
+    onShowDetails: () -> Unit,
+    onShowSettings: () -> Unit
 ) {
     val haptics = LocalHapticsManager.current
     var showMenu by remember { mutableStateOf(false) }
@@ -841,6 +917,16 @@ private fun RemoteHeader(
                             onClick = {
                                 showMenu = false
                                 onReconnect()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Configurações", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Settings, contentDescription = null, tint = Color(0xFF38BDF8))
+                            },
+                            onClick = {
+                                showMenu = false
+                                onShowSettings()
                             }
                         )
                         if (ipAddress.isNotBlank()) {

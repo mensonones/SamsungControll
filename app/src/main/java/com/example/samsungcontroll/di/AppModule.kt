@@ -1,5 +1,6 @@
 package com.example.samsungcontroll.di
 
+import com.example.samsungcontroll.AppSettings
 import com.example.samsungcontroll.CertificatePinStore
 import com.example.samsungcontroll.DiscoveryService
 import com.example.samsungcontroll.MacAddressResolver
@@ -14,6 +15,7 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 val appModule = module {
+    single { AppSettings(androidContext()) }
     single { SecureTvPreferences(androidContext()) }
     single<CertificatePinStore> { get<SecureTvPreferences>() }
     single { MacAddressResolver() }
@@ -28,7 +30,8 @@ val appModule = module {
             discoveryService = get(),
             macAddressResolver = get(),
             samsungDeviceInfoResolver = get(),
-            wakeOnLanSender = get()
+            wakeOnLanSender = get(),
+            appSettings = get()
         )
     }
 }
