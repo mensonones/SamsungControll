@@ -62,6 +62,9 @@ import androidx.compose.material.icons.filled.Tv
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.material3.Switch
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Delete
@@ -382,6 +385,7 @@ private fun TvDetailsDialog(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SettingsDialog(
     hapticsEnabled: Boolean,
@@ -406,12 +410,34 @@ private fun SettingsDialog(
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(stringResource(R.string.settings_idle_timeout), color = RemoteTokens.TextPrimary, fontSize = 13.sp)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(RemoteTokens.Space2),
+                        verticalArrangement = Arrangement.spacedBy(RemoteTokens.Space2)
+                    ) {
                         AppSettings.IDLE_TIMEOUT_OPTIONS.forEach { minutes ->
                             FilterChip(
                                 selected = minutes == idleTimeoutMinutes,
                                 onClick = { onIdleTimeoutChange(minutes) },
-                                label = { Text(if (minutes == 0) stringResource(R.string.settings_idle_never) else stringResource(R.string.settings_idle_minutes, minutes), fontSize = 12.sp) }
+                                label = {
+                                    Text(
+                                        if (minutes == 0) stringResource(R.string.settings_idle_never)
+                                        else stringResource(R.string.settings_idle_minutes, minutes),
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    labelColor = RemoteTokens.TextSecondary,
+                                    selectedContainerColor = RemoteTokens.AccentMuted,
+                                    selectedLabelColor = RemoteTokens.Accent
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = minutes == idleTimeoutMinutes,
+                                    borderColor = RemoteTokens.BorderStrong,
+                                    selectedBorderColor = RemoteTokens.Accent
+                                )
                             )
                         }
                     }
