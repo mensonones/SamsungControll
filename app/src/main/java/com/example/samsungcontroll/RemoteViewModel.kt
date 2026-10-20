@@ -368,7 +368,7 @@ class RemoteViewModel(
                 showDiscovery = false
                 saveResolvedMacAddress(cleanIp, savedIdentity)
                 startConnectionService()
-                controller?.requestInstalledApps()
+                requestInstalledAppsWithRetry()
                 pendingScene?.let { scene ->
                     pendingScene = null
                     // A TV that just woke needs a moment before it accepts keys and launches.
@@ -584,6 +584,19 @@ class RemoteViewModel(
         controller?.sendText(text)
     }
 
+    /** Some TVs ignore the request right after the channel opens, so ask again if nothing arrived. */
+    private fun requestInstalledAppsWithRetry() {
+        controller?.requestInstalledApps()
+        val attempt = connectionAttempt
+        viewModelScope.launch {
+            repeat(APPS_RETRIES) {
+                delay(APPS_RETRY_DELAY_MS)
+                if (attempt != connectionAttempt || installedApps.isNotEmpty()) return@launch
+                controller?.requestInstalledApps()
+            }
+        }
+    }
+
     fun refreshInstalledApps() {
         controller?.requestInstalledApps()
     }
@@ -659,6 +672,8 @@ class RemoteViewModel(
         const val WAKE_RECONNECT_RETRIES = 5
         const val MIN_SEARCH_DURATION_MS = 1_200L
         const val SCENE_SETTLE_MS = 1_500L
+        const val APPS_RETRIES = 3
+        const val APPS_RETRY_DELAY_MS = 2_000L
         const val IDLE_CHECK_INTERVAL_MS = 30_000L
     }
 }

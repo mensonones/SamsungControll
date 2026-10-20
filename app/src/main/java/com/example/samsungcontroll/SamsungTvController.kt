@@ -94,6 +94,7 @@ class SamsungTvController(
                             onTokenReceived(newToken)
                         }
                     }
+                    Log.d("SamsungTv", "TV event: ${json.optString("event")}")
                     when (json.optString("event")) {
                         "ms.channel.connect" -> {
                             isConnectedState = true
