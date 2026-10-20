@@ -63,6 +63,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Switch
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -110,6 +111,7 @@ import com.example.samsungcontroll.ConnectionState
 import com.example.samsungcontroll.DiscoveredTv
 import com.example.samsungcontroll.R
 import com.example.samsungcontroll.RemoteViewModel
+import com.example.samsungcontroll.SavedTv
 import com.example.samsungcontroll.TvApp
 import com.example.samsungcontroll.TvConnectionException
 import com.example.samsungcontroll.TvDeviceInfo
@@ -190,10 +192,37 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
     var showDetailsDialog by remember { mutableStateOf(false) }
     var showKeyboardDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var tvToForget by remember { mutableStateOf<SavedTv?>(null) }
 
     // The TV opened a text field (search box, password…): bring up our keyboard dialog.
     LaunchedEffect(viewModel.tvTextInputActive) {
         if (viewModel.tvTextInputActive) showKeyboardDialog = true
+    }
+
+    tvToForget?.let { tv ->
+        AlertDialog(
+            onDismissRequest = { tvToForget = null },
+            containerColor = Color(0xFF111827),
+            title = { Text("Esquecer TV?", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+            text = {
+                Text(
+                    "${viewModel.displayName(tv)} será removida e o pareamento apagado. " +
+                        "Será preciso aceitar o pedido na TV novamente.",
+                    color = Color(0xFFCBD5E1),
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.forgetTv(tv); tvToForget = null }) {
+                    Text("Esquecer", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { tvToForget = null }) {
+                    Text("Cancelar", color = Color(0xFF94A3B8), fontSize = 13.sp)
+                }
+            }
+        )
     }
 
     if (showSettingsDialog) {
@@ -273,7 +302,12 @@ private fun RemoteControlContent(viewModel: RemoteViewModel) {
                 onReconnect = { viewModel.reconnect() },
                 onEditNickname = { showNicknameDialog = true },
                 onShowDetails = { showDetailsDialog = true },
-                onShowSettings = { showSettingsDialog = true }
+                onShowSettings = { showSettingsDialog = true },
+                savedTvs = viewModel.savedTvs,
+                displayName = viewModel::displayName,
+                isCurrentTv = viewModel::isCurrentTv,
+                onSwitchTv = viewModel::switchToTv,
+                onForgetTv = { tvToForget = it }
             )
 
             ConnectionStatusBanner(
@@ -709,7 +743,12 @@ private fun RemoteHeader(
     onReconnect: () -> Unit,
     onEditNickname: () -> Unit,
     onShowDetails: () -> Unit,
-    onShowSettings: () -> Unit
+    onShowSettings: () -> Unit,
+    savedTvs: List<SavedTv>,
+    displayName: (SavedTv) -> String,
+    isCurrentTv: (SavedTv) -> Boolean,
+    onSwitchTv: (SavedTv) -> Unit,
+    onForgetTv: (SavedTv) -> Unit
 ) {
     val haptics = LocalHapticsManager.current
     var showMenu by remember { mutableStateOf(false) }
@@ -919,6 +958,40 @@ private fun RemoteHeader(
                                 onReconnect()
                             }
                         )
+                        savedTvs.forEach { tv ->
+                            val current = isCurrentTv(tv)
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        displayName(tv),
+                                        color = if (current) Color(0xFF22C55E) else Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Tv,
+                                        contentDescription = null,
+                                        tint = if (current) Color(0xFF22C55E) else Color(0xFF94A3B8)
+                                    )
+                                },
+                                trailingIcon = {
+                                    IconButton(onClick = { showMenu = false; onForgetTv(tv) }) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Esquecer ${displayName(tv)}",
+                                            tint = Color(0xFF94A3B8)
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    if (!current) onSwitchTv(tv)
+                                }
+                            )
+                        }
                         DropdownMenuItem(
                             text = { Text("Configurações", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) },
                             leadingIcon = {

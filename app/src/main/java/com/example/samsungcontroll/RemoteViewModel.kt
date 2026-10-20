@@ -54,6 +54,9 @@ class RemoteViewModel(
     var isMuted by mutableStateOf(false)
         private set
 
+    var savedTvs by mutableStateOf<List<SavedTv>>(emptyList())
+        private set
+
     var hapticsEnabled by mutableStateOf(appSettings.hapticsEnabled)
         private set
 
@@ -88,6 +91,11 @@ class RemoteViewModel(
     fun initialize() {
         val lastIp = tvPreferences.getLastConnectedIp()
         val lastIdentity = tvPreferences.getLastConnectedIdentity()
+        // Migrate: the TV paired before the multi-TV list existed becomes its first entry.
+        if (lastIp.isNotBlank() && tvPreferences.getSavedTvs().isEmpty()) {
+            tvPreferences.upsertSavedTv(lastIp, lastIdentity)
+        }
+        refreshSavedTvs()
         macAddress = tvPreferences.getMacAddress(lastIp, lastIdentity)
         tvNickname = tvPreferences.getCustomNickname(lastIp, lastIdentity) ?: ""
         if (lastIp.isNotBlank() && connectionState == ConnectionState.DISCONNECTED) {
@@ -161,6 +169,40 @@ class RemoteViewModel(
             // Try a direct reconnect first (instant when the TV is on) and only fall
             // back to the slower Wake-On-LAN flow if the direct attempt fails.
             connectToTv(lastIp, lastIdentity, wakeOnFailure = true, retriesAfterWake = 0, rediscover = true)
+        }
+    }
+
+    private fun refreshSavedTvs() {
+        savedTvs = tvPreferences.getSavedTvs()
+    }
+
+    /** Label shown in the quick-switch menu: nickname, else the TV's own name, else its IP. */
+    fun displayName(tv: SavedTv): String =
+        tvPreferences.getCustomNickname(tv.ip, tv.identity) ?: tv.name ?: tv.ip
+
+    fun isCurrentTv(tv: SavedTv): Boolean =
+        tv.ip == ipAddress.trim() ||
+            (tv.identity != null && tv.identity == tvPreferences.getLastConnectedIdentity())
+
+    fun switchToTv(tv: SavedTv) {
+        connectToTv(tv.ip, tv.identity, wakeOnFailure = true, retriesAfterWake = 0, rediscover = true)
+    }
+
+    /** Removes a TV from the list and erases its pairing (token and pinned certificate). */
+    fun forgetTv(tv: SavedTv) {
+        val wasCurrent = isCurrentTv(tv)
+        tvPreferences.forgetPairing(tv.ip, tv.identity)
+        tvPreferences.removeSavedTv(tv)
+        refreshSavedTvs()
+        if (wasCurrent) {
+            disconnect()
+            installedApps = emptyList()
+            tvDeviceInfo = null
+            ipAddress = ""
+            macAddress = ""
+            tvNickname = ""
+            tvPreferences.saveLastConnectedIp("")
+            tvPreferences.saveLastConnectedIdentity(null)
         }
     }
 
@@ -306,6 +348,8 @@ class RemoteViewModel(
         } else {
             connectionState = newState
             if (newState == ConnectionState.CONNECTED) {
+                tvPreferences.upsertSavedTv(cleanIp, savedIdentity)
+                refreshSavedTvs()
                 showDiscovery = false
                 saveResolvedMacAddress(cleanIp, savedIdentity)
                 startConnectionService()
@@ -499,6 +543,11 @@ class RemoteViewModel(
 
             launch(Dispatchers.Main.immediate) {
                 tvDeviceInfo = info
+                info?.let {
+                    val friendly = it.name.takeIf { n -> n != "Smart TV" } ?: it.modelName
+                    tvPreferences.upsertSavedTv(ip, identity, friendly)
+                    refreshSavedTvs()
+                }
                 if (!resolvedMac.isNullOrBlank()) {
                     macAddress = resolvedMac
                 }

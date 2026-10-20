@@ -6,11 +6,16 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
 import androidx.core.content.edit
+import org.json.JSONArray
+import org.json.JSONObject
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+
+/** A TV the user has connected to before; shown in the quick-switch menu. */
+data class SavedTv(val ip: String, val identity: String?, val name: String?)
 
 interface CertificatePinStore {
     fun getCertificateFingerprint(host: String): String?
@@ -123,6 +128,51 @@ class SecureTvPreferences(context: Context) : CertificatePinStore {
         prefs.edit { putString(certificateKey(host), fingerprint) }
     }
 
+    fun getSavedTvs(): List<SavedTv> {
+        val raw = prefs.getString(KEY_SAVED_TVS, null) ?: return emptyList()
+        return runCatching {
+            val array = JSONArray(raw)
+            (0 until array.length()).mapNotNull { index ->
+                val item = array.optJSONObject(index) ?: return@mapNotNull null
+                val ip = item.optString("ip").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                SavedTv(
+                    ip = ip,
+                    identity = item.optString("identity").takeIf { it.isNotBlank() },
+                    name = item.optString("name").takeIf { it.isNotBlank() }
+                )
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    /**
+     * Adds the TV, or updates the existing entry: matched by identity when known (so a
+     * new DHCP address replaces the old one), otherwise by IP. A null [name] keeps the stored one.
+     */
+    fun upsertSavedTv(ip: String, identity: String?, name: String? = null) {
+        val current = getSavedTvs()
+        val existing = current.firstOrNull { saved ->
+            (identity != null && saved.identity == identity) || saved.ip == ip
+        }
+        val updated = SavedTv(ip, identity ?: existing?.identity, name ?: existing?.name)
+        writeSavedTvs(current.filterNot { it == existing } + updated)
+    }
+
+    fun removeSavedTv(tv: SavedTv) {
+        writeSavedTvs(getSavedTvs().filterNot { it.ip == tv.ip && it.identity == tv.identity })
+    }
+
+    private fun writeSavedTvs(tvs: List<SavedTv>) {
+        val array = JSONArray()
+        tvs.forEach { tv ->
+            array.put(JSONObject().apply {
+                put("ip", tv.ip)
+                tv.identity?.let { put("identity", it) }
+                tv.name?.let { put("name", it) }
+            })
+        }
+        prefs.edit { putString(KEY_SAVED_TVS, array.toString()) }
+    }
+
     /** Drops the pinned certificate and tokens so the TV can be paired again from scratch. */
     fun forgetPairing(ip: String, identity: String? = null) {
         prefs.edit {
@@ -192,6 +242,7 @@ class SecureTvPreferences(context: Context) : CertificatePinStore {
     private companion object {
         const val PREFS_NAME = "tv_prefs"
         const val KEY_ALIAS = "samsung_remote_token_key"
+        const val KEY_SAVED_TVS = "saved_tvs"
         const val KEY_LAST_CONNECTED_IP = "last_connected_ip"
         const val KEY_LAST_CONNECTED_IDENTITY = "last_connected_identity"
         const val KEY_LAST_CONNECTED_MAC = "last_connected_mac"
