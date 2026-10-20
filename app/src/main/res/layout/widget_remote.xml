@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:padding="8dp">
+
+    <ImageButton
+        android:id="@+id/widget_power"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_margin="4dp"
+        android:layout_weight="1"
+        android:background="@drawable/widget_key_background"
+        android:contentDescription="@string/cd_power"
+        android:src="@drawable/ic_widget_power" />
+
+    <ImageButton
+        android:id="@+id/widget_mute"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_margin="4dp"
+        android:layout_weight="1"
+        android:background="@drawable/widget_key_background"
+        android:contentDescription="@string/cd_unmuted"
+        android:src="@drawable/ic_widget_mute" />
+
+    <ImageButton
+        android:id="@+id/widget_vol_down"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_margin="4dp"
+        android:layout_weight="1"
+        android:background="@drawable/widget_key_background"
+        android:contentDescription="@string/cd_volume_down"
+        android:src="@drawable/ic_widget_vol_down" />
+
+    <ImageButton
+        android:id="@+id/widget_vol_up"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_margin="4dp"
+        android:layout_weight="1"
+        android:background="@drawable/widget_key_background"
+        android:contentDescription="@string/cd_volume_up"
+        android:src="@drawable/ic_widget_vol_up" />
+</LinearLayout>

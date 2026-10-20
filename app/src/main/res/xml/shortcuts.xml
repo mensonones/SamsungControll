@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="power"
+        android:enabled="true"
+        android:icon="@drawable/ic_widget_power"
+        android:shortcutShortLabel="@string/shortcut_power">
+        <intent
+            android:action="com.example.samsungcontroll.action.QUICK"
+            android:targetClass="com.example.samsungcontroll.QuickActionActivity"
+            android:targetPackage="com.example.samsungcontroll">
+            <extra android:name="quick_action" android:value="power" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="mute"
+        android:enabled="true"
+        android:icon="@drawable/ic_widget_mute"
+        android:shortcutShortLabel="@string/shortcut_mute">
+        <intent
+            android:action="com.example.samsungcontroll.action.QUICK"
+            android:targetClass="com.example.samsungcontroll.QuickActionActivity"
+            android:targetPackage="com.example.samsungcontroll">
+            <extra android:name="quick_action" android:value="key:KEY_MUTE" />
+        </intent>
+    </shortcut>
+</shortcuts>

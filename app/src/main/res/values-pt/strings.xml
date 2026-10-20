@@ -114,4 +114,11 @@
     <string name="more_keys">Mais teclas</string>
     <string name="less_keys">Menos teclas</string>
     <string name="nickname_placeholder">Ex: Sala</string>
+    <string name="quick_working">Executando…</string>
+    <string name="quick_needs_pairing">Abra o app para parear com a TV primeiro</string>
+    <string name="quick_unreachable">TV inalcançável</string>
+    <string name="quick_no_tv">Nenhuma TV pareada ainda</string>
+    <string name="widget_description">Power, mudo e volume da TV</string>
+    <string name="shortcut_power">Ligar/desligar TV</string>
+    <string name="shortcut_mute">Mutar TV</string>
 </resources>

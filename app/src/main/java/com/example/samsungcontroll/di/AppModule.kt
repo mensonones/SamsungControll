@@ -3,6 +3,7 @@ package com.example.samsungcontroll.di
 import com.example.samsungcontroll.AppSettings
 import com.example.samsungcontroll.CertificatePinStore
 import com.example.samsungcontroll.DiscoveryService
+import com.example.samsungcontroll.QuickTvActions
 import com.example.samsungcontroll.RemoteViewModel
 import com.example.samsungcontroll.SamsungDeviceInfoResolver
 import com.example.samsungcontroll.SecureTvPreferences
@@ -19,6 +20,7 @@ val appModule = module {
     single<CertificatePinStore> { get<SecureTvPreferences>() }
     single { SamsungDeviceInfoResolver() }
     single { WakeOnLanSender(androidContext()) }
+    single { QuickTvActions(get(), get(), get()) }
     single<DiscoveryService> { TvDiscovery(androidContext()) }
 
     viewModel {

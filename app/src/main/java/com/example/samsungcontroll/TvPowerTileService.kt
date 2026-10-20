@@ -6,19 +6,14 @@ import android.content.Intent
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import kotlin.coroutines.resume
 
 /**
  * Quick Settings tile that reflects and toggles the saved TV's power state
@@ -33,8 +28,7 @@ import kotlin.coroutines.resume
 class TvPowerTileService : TileService(), KoinComponent {
 
     private val tvPreferences: SecureTvPreferences by inject()
-    private val certificatePinStore: CertificatePinStore by inject()
-    private val wakeOnLanSender: WakeOnLanSender by inject()
+    private val quickActions: QuickTvActions by inject()
     private val deviceInfoResolver: SamsungDeviceInfoResolver by inject()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -46,25 +40,16 @@ class TvPowerTileService : TileService(), KoinComponent {
 
     override fun onClick() {
         super.onClick()
-        val ip = tvPreferences.getLastConnectedIp()
-        if (ip.isBlank()) {
+        if (tvPreferences.getLastConnectedIp().isBlank()) {
             openApp()
             return
         }
-        val identity = tvPreferences.getLastConnectedIdentity()
-        val token = tvPreferences.getToken(ip, identity)
         scope.launch {
-            when (attemptPowerToggle(ip, identity, token)) {
-                Outcome.POWERED_OFF -> updateTile(on = false)
-                Outcome.UNREACHABLE -> {
-                    val mac = normalizeMacAddress(tvPreferences.getMacAddress(ip, identity))
-                    if (mac != null) {
-                        runCatching { wakeOnLanSender.send(mac, ip) }
-                            .onFailure { Log.w(TAG, "WOL failed", it) }
-                    }
-                    updateTile(on = true)
-                }
-                Outcome.NEEDS_PAIRING -> withContext(Dispatchers.Main) { openApp() }
+            when (quickActions.run(QuickAction.Power)) {
+                QuickResult.DONE -> updateTile(on = false)
+                QuickResult.WOKE_TV -> updateTile(on = true)
+                QuickResult.NEEDS_PAIRING, QuickResult.NO_TV -> withContext(Dispatchers.Main) { openApp() }
+                QuickResult.UNREACHABLE -> updateTile(on = false)
             }
         }
     }
@@ -86,49 +71,6 @@ class TvPowerTileService : TileService(), KoinComponent {
                 else -> true
             }
             updateTile(on = isOn)
-        }
-    }
-
-    private suspend fun attemptPowerToggle(ip: String, identity: String?, token: String?): Outcome {
-        var controller: SamsungTvController? = null
-        val connected = withTimeoutOrNull(CONNECT_TIMEOUT_MS) {
-            suspendCancellableCoroutine { cont ->
-                controller = SamsungTvController(
-                    tvIp = ip,
-                    token = token,
-                    certificatePinStore = certificatePinStore,
-                    onTokenReceived = { newToken -> tvPreferences.saveToken(ip, identity, newToken) },
-                    onStateChange = { state ->
-                        if (cont.isActive) {
-                            when (state) {
-                                ConnectionState.CONNECTED -> cont.resume(ConnectionState.CONNECTED)
-                                ConnectionState.FAILED -> cont.resume(ConnectionState.FAILED)
-                                ConnectionState.WAITING_FOR_PERMISSION ->
-                                    cont.resume(ConnectionState.WAITING_FOR_PERMISSION)
-                                else -> Unit
-                            }
-                        }
-                    }
-                ).also { it.connect() }
-                cont.invokeOnCancellation { controller?.disconnect() }
-            }
-        }
-
-        return when (connected) {
-            ConnectionState.CONNECTED -> {
-                controller?.sendKey("KEY_POWER")
-                delay(POWER_KEY_FLUSH_MS)
-                controller?.disconnect()
-                Outcome.POWERED_OFF
-            }
-            ConnectionState.WAITING_FOR_PERMISSION -> {
-                controller?.disconnect()
-                Outcome.NEEDS_PAIRING
-            }
-            else -> {
-                controller?.disconnect()
-                Outcome.UNREACHABLE
-            }
         }
     }
 
@@ -166,13 +108,5 @@ class TvPowerTileService : TileService(), KoinComponent {
     override fun onDestroy() {
         scope.cancel()
         super.onDestroy()
-    }
-
-    private enum class Outcome { POWERED_OFF, UNREACHABLE, NEEDS_PAIRING }
-
-    private companion object {
-        const val TAG = "TvPowerTile"
-        const val CONNECT_TIMEOUT_MS = 4_000L
-        const val POWER_KEY_FLUSH_MS = 400L
     }
 }

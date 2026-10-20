@@ -117,4 +117,11 @@
     <string name="more_keys">More keys</string>
     <string name="less_keys">Fewer keys</string>
     <string name="nickname_placeholder">e.g. Living room</string>
+    <string name="quick_working">Working on it…</string>
+    <string name="quick_needs_pairing">Open the app to pair with the TV first</string>
+    <string name="quick_unreachable">TV not reachable</string>
+    <string name="quick_no_tv">No TV paired yet</string>
+    <string name="widget_description">TV power, mute and volume</string>
+    <string name="shortcut_power">TV power</string>
+    <string name="shortcut_mute">Mute TV</string>
 </resources>
