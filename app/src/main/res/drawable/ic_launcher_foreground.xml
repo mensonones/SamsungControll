@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:drawable="@drawable/app_logo_mark"
-        android:gravity="center"
-        android:width="60dp"
-        android:height="60dp" />
-</layer-list>
+<!--
+  Adaptive icon / splash foreground. The launcher and the Android 12+ splash screen crop the
+  icon to a circle covering the central two thirds of the 108dp canvas, so the logo is inset
+  to keep its corners (the TV frame) inside that circle.
+-->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/app_logo_mark"
+    android:insetLeft="16%"
+    android:insetTop="16%"
+    android:insetRight="16%"
+    android:insetBottom="16%" />
